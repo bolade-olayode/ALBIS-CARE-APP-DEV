@@ -1,0 +1,22 @@
+import { initializeApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCEKkvuLriH04MYWsoCwaqQMoy5usnDaTY",
+  authDomain: "albiscare-app.firebaseapp.com",
+  projectId: "albiscare-app",
+  storageBucket: "albiscare-app.firebasestorage.app",
+  messagingSenderId: "31891523461",
+  appId: "1:31891523461:web:4831d6217222e5b7ade6ec"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+
+export const auth = getAuth(app);
+export const db = getFirestore(app);
+export const storage = getStorage(app);
+
+export default app;
