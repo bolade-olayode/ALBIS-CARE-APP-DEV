@@ -15,7 +15,12 @@ import {
 } from 'react-native';
 import { authApi } from '../../services/api/authApi';
 
-export default function LoginScreen() {
+interface LoginScreenProps {
+  navigation?: any;
+  onLogin?: (token: string, userData: any) => void;
+}
+
+export default function LoginScreen({ navigation, onLogin }: LoginScreenProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -32,11 +37,12 @@ export default function LoginScreen() {
     try {
       const response = await authApi.login(email, password);
 
-      if (response.success) {
-        Alert.alert('Success', 'Login successful!');
-        // TODO: Navigate to dashboard based on user role
-        console.log('User data:', response.data);
-      } else {
+if (response.success) {
+  // Pass token and user data to parent
+  if (onLogin) {
+    onLogin(response.data.token, response.data);
+  }
+} else {
         Alert.alert('Login Failed', response.message || 'Invalid credentials');
       }
     } catch (error: any) {
