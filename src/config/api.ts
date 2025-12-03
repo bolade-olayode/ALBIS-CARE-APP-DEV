@@ -6,7 +6,7 @@ export const API_CONFIG = {
     LOGIN: '/v1/auth/login.php',
     LOGOUT: '/v1/auth/logout.php',
     STAFF: '/v1/staff',
-    CLIENTS: '/v1/clients',
+    CLIENTS: '/v1/clients/',
     VISITS: '/v1/visits',
   },
   TIMEOUT: 10000, // 10 seconds

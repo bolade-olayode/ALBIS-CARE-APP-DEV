@@ -4,13 +4,22 @@ import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, View, Text } from 'react-native';
 
 // Screens
 import LoginScreen from '../screens/auth/LoginScreen';
 import AdminDashboard from '../screens/dashboard/AdminDashboard';
 import StaffDashboard from '../screens/dashboard/StaffDashboard';
 import RelativeDashboard from '../screens/dashboard/RelativeDashboard';
+import ClientListScreen from '../screens/clients/ClientListScreen';
+import ClientDetailScreen from '../screens/clients/ClientDetailScreen';
+import AddClientScreen from '../screens/clients/AddClientScreen';
+import EditClientScreen from '../screens/clients/EditClientScreen';
+import StaffListScreen from '../screens/staff/StaffListScreen';
+import StaffDetailScreen from '../screens/staff/StaffDetailScreen';
+import AddStaffScreen from '../screens/staff/AddStaffScreen';
+import EditStaffScreen from '../screens/staff/EditStaffScreen';
+
 
 const Stack = createNativeStackNavigator();
 
@@ -101,16 +110,77 @@ export default function AppNavigator() {
             {(props) => <LoginScreen {...props} onLogin={handleLogin} />}
           </Stack.Screen>
         ) : (
-          // Logged in - show appropriate dashboard
-          <Stack.Screen name="Dashboard">
-            {(props) => DashboardComponent ? (
-              <DashboardComponent {...props} userData={userData} onLogout={handleLogout} />
-            ) : (
-              <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                <Text>Error loading dashboard</Text>
-              </View>
-            )}
-          </Stack.Screen>
+          <>
+            {/* Main Dashboard */}
+            <Stack.Screen name="Dashboard">
+              {(props) => DashboardComponent ? (
+                <DashboardComponent {...props} userData={userData} onLogout={handleLogout} />
+              ) : (
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                  <Text>Error loading dashboard</Text>
+                </View>
+              )}
+            </Stack.Screen>
+
+            {/* Client List Screen-list all the clients available */}
+            <Stack.Screen 
+              name="ClientList" 
+              component={ClientListScreen}
+              options={{ headerShown: false }}
+            />
+            
+            {/* Client Detail Screen-shows details of all clients available */}
+            <Stack.Screen 
+            name="ClientDetail" 
+            component={ClientDetailScreen}
+            options={{ headerShown: false }}
+            />
+
+            {/* Add Client Screen */}
+            <Stack.Screen 
+            name="AddClient" 
+            component={AddClientScreen}
+            options={{ headerShown: false }}
+            />
+
+           {/* Edit Client Screen */}
+           <Stack.Screen 
+           name="EditClient" 
+           component={EditClientScreen}
+           options={{ headerShown: false }}
+           />
+          
+          {/* Staff Lists Screen */}
+          <Stack.Screen 
+          name="StaffList" 
+          component={StaffListScreen}
+          options={{ headerShown: false }}
+          />
+
+         {/* Staff Detail Screen */}
+         <Stack.Screen 
+        name="StaffDetail" 
+        component={StaffDetailScreen}
+        options={{ headerShown: false }}
+       /> 
+       
+       {/* Add Staff Screen */}
+       <Stack.Screen 
+        name="AddStaff" 
+        component={AddStaffScreen}
+        options={{ headerShown: false }}
+        />
+
+       {/* Edit Staff Screen */}
+       <Stack.Screen 
+       name="EditStaff" 
+       component={EditStaffScreen}
+       options={{ headerShown: false }}
+       />
+
+
+          </>
+          
         )}
       </Stack.Navigator>
     </NavigationContainer>

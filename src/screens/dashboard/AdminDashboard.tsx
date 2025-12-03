@@ -12,11 +12,12 @@ import {
 } from 'react-native';
 
 interface AdminDashboardProps {
+  navigation: any;  // ← Add this
   userData: any;
   onLogout: () => void;
 }
 
-export default function AdminDashboard({ userData, onLogout }: AdminDashboardProps) {
+export default function AdminDashboard({ navigation, userData, onLogout }: AdminDashboardProps) {
   const handleLogout = () => {
     Alert.alert(
       'Logout',
@@ -65,15 +66,21 @@ export default function AdminDashboard({ userData, onLogout }: AdminDashboardPro
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           
-          <TouchableOpacity style={styles.actionCard}>
-            <Text style={styles.actionTitle}>👥 Manage Staff</Text>
-            <Text style={styles.actionDescription}>View and manage staff members</Text>
-          </TouchableOpacity>
+                   <TouchableOpacity 
+  style={styles.actionCard}
+  onPress={() => navigation.navigate('StaffList')}
+>
+  <Text style={styles.actionTitle}>👨‍⚕️ Manage Staff</Text>
+  <Text style={styles.actionDescription}>View and manage staff members</Text>
+</TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionCard}>
-            <Text style={styles.actionTitle}>🏥 Manage Clients</Text>
-            <Text style={styles.actionDescription}>View and manage care users</Text>
-          </TouchableOpacity>
+         <TouchableOpacity 
+  style={styles.actionCard}
+  onPress={() => navigation.navigate('ClientList')}
+>
+  <Text style={styles.actionTitle}>🏥 Manage Clients</Text>
+  <Text style={styles.actionDescription}>View and manage care users</Text>
+</TouchableOpacity>
 
           <TouchableOpacity style={styles.actionCard}>
             <Text style={styles.actionTitle}>📅 Schedule Visits</Text>
@@ -84,6 +91,11 @@ export default function AdminDashboard({ userData, onLogout }: AdminDashboardPro
             <Text style={styles.actionTitle}>📊 View Reports</Text>
             <Text style={styles.actionDescription}>Analytics and insights</Text>
           </TouchableOpacity>
+          
+
+
+
+
         </View>
       </ScrollView>
     </SafeAreaView>

@@ -1,47 +1,64 @@
-// src/screens/clients/ClientListScreen.tsx
+// src/screens/staff/StaffListScreen.tsx
 
 import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
+  ScrollView,
   TouchableOpacity,
   ActivityIndicator,
   TextInput,
   RefreshControl,
   Alert,
 } from 'react-native';
-import { clientApi, Client } from '../../services/api/clientApi';
+import { staffApi, Staff } from '../../services/api/staffApi';
 
-interface ClientListScreenProps {
+interface StaffListScreenProps {
   navigation: any;
 }
 
-export default function ClientListScreen({ navigation }: ClientListScreenProps) {
-  const [clients, setClients] = useState<Client[]>([]);
+interface GroupedStaff {
+  roleId: number;
+  roleName: string;
+  staff: Staff[];
+  color: string;
+  icon: string;
+}
+
+export default function StaffListScreen({ navigation }: StaffListScreenProps) {
+  const [staff, setStaff] = useState<Staff[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-
- useEffect(() => {
-  const unsubscribe = navigation.addListener('focus', () => {
-    loadClients();
+  const [expandedSections, setExpandedSections] = useState<{ [key: number]: boolean }>({
+    1: true, // Care Manager expanded by default
+    2: true, // Carer expanded by default
+    3: true, // Nurse expanded by default
+    4: true, // Driver expanded by default
   });
-  return unsubscribe;
-}, [navigation]);
 
-  const loadClients = async () => {
+  useEffect(() => {
+    loadStaff();
+  }, []);
+
+  // Auto-refresh when screen comes into focus
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadStaff();
+    });
+    return unsubscribe;
+  }, [navigation]);
+
+  const loadStaff = async () => {
     try {
       setLoading(true);
-      const response = await clientApi.getClients();
+      const response = await staffApi.getStaff();
       
       if (response.success && response.data) {
-        // Sort clients by care level priority
-        const sortedClients = sortClientsByPriority(response.data.clients);
-        setClients(sortedClients);
+        setStaff(response.data.staff);
       } else {
-        Alert.alert('Error', response.message || 'Failed to load clients');
+        Alert.alert('Error', response.message || 'Failed to load staff');
       }
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Something went wrong');
@@ -50,31 +67,9 @@ export default function ClientListScreen({ navigation }: ClientListScreenProps) 
     }
   };
 
-  // Sort clients by care level priority (complex > high > medium > low)
-  const sortClientsByPriority = (clientList: Client[]) => {
-    const priorityMap: { [key: string]: number } = {
-      'complex': 1,
-      'high': 2,
-      'medium': 3,
-      'low': 4,
-    };
-
-    return [...clientList].sort((a, b) => {
-      const priorityA = priorityMap[a.care_level?.toLowerCase() || 'low'] || 5;
-      const priorityB = priorityMap[b.care_level?.toLowerCase() || 'low'] || 5;
-      
-      if (priorityA !== priorityB) {
-        return priorityA - priorityB;
-      }
-      
-      // If same priority, sort alphabetically by first name
-      return a.cFName.localeCompare(b.cFName);
-    });
-  };
-
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadClients();
+    await loadStaff();
     setRefreshing(false);
   };
 
@@ -82,15 +77,14 @@ export default function ClientListScreen({ navigation }: ClientListScreenProps) 
     setSearchQuery(query);
     
     if (query.trim() === '') {
-      loadClients();
+      loadStaff();
       return;
     }
 
     try {
-      const response = await clientApi.searchClients(query);
+      const response = await staffApi.searchStaff(query);
       if (response.success && response.data) {
-        const sortedClients = sortClientsByPriority(response.data.clients);
-        setClients(sortedClients);
+        setStaff(response.data.staff);
       }
     } catch (error) {
       console.error('Search error:', error);
@@ -103,77 +97,52 @@ export default function ClientListScreen({ navigation }: ClientListScreenProps) 
     }
   };
 
-  // Get care level badge style
-  const getCareLevelStyle = (careLevel?: string) => {
-    const level = careLevel?.toLowerCase() || 'low';
-    
-    switch (level) {
-      case 'complex':
-        return {
-          backgroundColor: '#fee2e2',
-          textColor: '#991b1b',
-          priority: '🔴',
-        };
-      case 'high':
-        return {
-          backgroundColor: '#fed7aa',
-          textColor: '#9a3412',
-          priority: '🟠',
-        };
-      case 'medium':
-        return {
-          backgroundColor: '#fef3c7',
-          textColor: '#92400e',
-          priority: '🟡',
-        };
-      case 'low':
-        return {
-          backgroundColor: '#d1fae5',
-          textColor: '#065f46',
-          priority: '🟢',
-        };
-      default:
-        return {
-          backgroundColor: '#f1f5f9',
-          textColor: '#475569',
-          priority: '⚪',
-        };
-    }
+  const toggleSection = (roleId: number) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [roleId]: !prev[roleId]
+    }));
   };
 
-  const renderClientCard = ({ item }: { item: Client }) => {
-    const careLevelStyle = getCareLevelStyle(item.care_level);
-    
+  // Group staff by role
+  const groupStaffByRole = (): GroupedStaff[] => {
+    const roleConfig = [
+      { roleId: 1, roleName: 'Care Managers', color: '#fee2e2', textColor: '#991b1b', icon: '🔴' },
+      { roleId: 2, roleName: 'Carers', color: '#dbeafe', textColor: '#1e40af', icon: '🔵' },
+      { roleId: 3, roleName: 'Nurses', color: '#d1fae5', textColor: '#065f46', icon: '🟢' },
+      { roleId: 4, roleName: 'Drivers', color: '#fef3c7', textColor: '#92400e', icon: '🟡' },
+    ];
+
+    return roleConfig.map(role => ({
+      ...role,
+      staff: staff.filter(s => s.role_id === role.roleId),
+      color: role.color
+    })).filter(group => group.staff.length > 0);
+  };
+
+  const renderStaffCard = (item: Staff) => {
     return (
       <TouchableOpacity
-        style={styles.clientCard}
-        onPress={() => navigation.navigate('ClientDetail', { clientId: item.cNo })}
+        key={item.id}
+        style={styles.staffCard}
+        onPress={() => navigation.navigate('StaffDetail', { staffId: item.id })}
       >
-        <View style={styles.clientHeader}>
+        <View style={styles.staffHeader}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>
-              {item.cFName.charAt(0)}{item.cLName.charAt(0)}
+              {item.name.split(' ').map(n => n.charAt(0)).join('').substring(0, 2)}
             </Text>
           </View>
-          <View style={styles.clientInfo}>
-            <Text style={styles.clientName}>
-              {item.cFName} {item.cLName}
-            </Text>
-            <Text style={styles.clientDetail}>📍 {item.cTown || 'N/A'}</Text>
-            <Text style={styles.clientDetail}>📞 {item.cTel || 'N/A'}</Text>
+          <View style={styles.staffInfo}>
+            <Text style={styles.staffName}>{item.name}</Text>
+            <Text style={styles.staffDetail}>📞 {item.phone}</Text>
           </View>
-          <View style={styles.statusBadge}>
-            <Text style={styles.statusText}>{item.status || 'Active'}</Text>
+          <View style={[styles.statusBadge, { backgroundColor: item.status === 'active' ? '#dcfce7' : '#fee2e2' }]}>
+            <Text style={[styles.statusText, { color: item.status === 'active' ? '#166534' : '#991b1b' }]}>
+              {item.status || 'Active'}
+            </Text>
           </View>
         </View>
-        
-        {item.care_level && (
-          <View style={[styles.careLevelBadge, { backgroundColor: careLevelStyle.backgroundColor }]}>
-            <Text style={[styles.careLevelText, { color: careLevelStyle.textColor }]}>
-              {careLevelStyle.priority} Care Level: {item.care_level}
-            </Text>
-          </View>
-        )}
       </TouchableOpacity>
     );
   };
@@ -182,10 +151,12 @@ export default function ClientListScreen({ navigation }: ClientListScreenProps) 
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#2563eb" />
-        <Text style={styles.loadingText}>Loading clients...</Text>
+        <Text style={styles.loadingText}>Loading staff...</Text>
       </View>
     );
   }
+
+  const groupedStaff = groupStaffByRole();
 
   return (
     <View style={styles.container}>
@@ -197,21 +168,21 @@ export default function ClientListScreen({ navigation }: ClientListScreenProps) 
         >
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Clients</Text>
+        <Text style={styles.headerTitle}>Staff</Text>
         <TouchableOpacity
           style={styles.addButton}
-          onPress={() => navigation.navigate('AddClient')}
+          onPress={() => navigation.navigate('AddStaff')}
         >
           <Text style={styles.addButtonText}>+ Add</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Search Bar with Icon */}
+      {/* Search Bar */}
       <View style={styles.searchContainer}>
         <View style={styles.searchWrapper}>
           <TextInput
             style={styles.searchInput}
-            placeholder="Search clients..."
+            placeholder="Search staff..."
             value={searchQuery}
             onChangeText={handleSearch}
             onSubmitEditing={executeSearch}
@@ -226,25 +197,46 @@ export default function ClientListScreen({ navigation }: ClientListScreenProps) 
         </View>
       </View>
 
-      {/* Client List */}
-      <FlatList
-        data={clients}
-        renderItem={renderClientCard}
-        keyExtractor={(item) => item.cNo.toString()}
-        contentContainerStyle={styles.listContent}
+      {/* Grouped Staff List */}
+      <ScrollView
+        style={styles.content}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
-        ListEmptyComponent={
+      >
+        {groupedStaff.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>🏥</Text>
-            <Text style={styles.emptyTitle}>No clients found</Text>
+            <Text style={styles.emptyText}>👥</Text>
+            <Text style={styles.emptyTitle}>No staff found</Text>
             <Text style={styles.emptyDescription}>
-              {searchQuery ? 'Try a different search' : 'Add your first client to get started'}
+              {searchQuery ? 'Try a different search' : 'Add your first staff member to get started'}
             </Text>
           </View>
-        }
-      />
+        ) : (
+          groupedStaff.map((group) => (
+            <View key={group.roleId} style={styles.roleSection}>
+              {/* Role Header - Collapsible */}
+              <TouchableOpacity
+                style={[styles.roleHeader, { backgroundColor: group.color }]}
+                onPress={() => toggleSection(group.roleId)}
+              >
+                <Text style={styles.roleHeaderText}>
+                  {expandedSections[group.roleId] ? '▼' : '▶'} {group.icon} {group.roleName} ({group.staff.length})
+                </Text>
+              </TouchableOpacity>
+
+              {/* Staff Cards - Only show if expanded */}
+              {expandedSections[group.roleId] && (
+                <View style={styles.staffList}>
+                  {group.staff.map(renderStaffCard)}
+                </View>
+              )}
+            </View>
+          ))
+        )}
+
+        <View style={{ height: 40 }} />
+      </ScrollView>
     </View>
   );
 }
@@ -327,21 +319,38 @@ const styles = StyleSheet.create({
   searchIcon: {
     fontSize: 18,
   },
-  listContent: {
-    padding: 16,
+  content: {
+    flex: 1,
   },
-  clientCard: {
+  roleSection: {
+    marginHorizontal: 16,
+    marginTop: 16,
+  },
+  roleHeader: {
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  roleHeaderText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1e293b',
+  },
+  staffList: {
+    gap: 8,
+  },
+  staffCard: {
     backgroundColor: 'white',
     borderRadius: 12,
     padding: 16,
-    marginBottom: 12,
+    marginBottom: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
     elevation: 2,
   },
-  clientHeader: {
+  staffHeader: {
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -358,41 +367,28 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
-  clientInfo: {
+  staffInfo: {
     flex: 1,
     marginLeft: 12,
   },
-  clientName: {
+  staffName: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1e293b',
     marginBottom: 4,
   },
-  clientDetail: {
+  staffDetail: {
     fontSize: 13,
     color: '#64748b',
     marginBottom: 2,
   },
   statusBadge: {
-    backgroundColor: '#dcfce7',
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
   },
   statusText: {
     fontSize: 12,
-    color: '#166534',
-    fontWeight: '600',
-  },
-  careLevelBadge: {
-    marginTop: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
-  },
-  careLevelText: {
-    fontSize: 13,
     fontWeight: '600',
   },
   emptyState: {

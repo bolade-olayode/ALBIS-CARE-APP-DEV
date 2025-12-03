@@ -74,7 +74,7 @@ if (response.success) {
           <Text style={styles.label}>Email</Text>
           <TextInput
             style={styles.input}
-            placeholder="admin@albiscare.co.uk"
+            placeholder="Mobile number or Email"
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
