@@ -1,4 +1,4 @@
-# Albis Care - Care Management System READM.md
+# Albis Care - Care Management System
 
 A comprehensive mobile application for managing care services, staff, clients, and care visits.
 
