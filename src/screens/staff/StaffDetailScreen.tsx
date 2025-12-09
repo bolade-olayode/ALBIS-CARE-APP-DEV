@@ -9,9 +9,9 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
-  SafeAreaView,
 } from 'react-native';
-import { staffApi, Staff } from '../../services/api/staffApi';
+import { ScreenWrapper } from '../../components';
+import { staffApi } from '../../services/api/staffApi';
 
 interface StaffDetailScreenProps {
   route: any;
@@ -85,46 +85,50 @@ export default function StaffDetailScreen({ route, navigation }: StaffDetailScre
 
   const getRoleBadgeStyle = (roleId: number) => {
     switch (roleId) {
-      case 1: // Care Manager
-        return { backgroundColor: '#fee2e2', textColor: '#991b1b', icon: '🔴' };
-      case 2: // Carer
-        return { backgroundColor: '#dbeafe', textColor: '#1e40af', icon: '🔵' };
-      case 3: // Nurse
-        return { backgroundColor: '#d1fae5', textColor: '#065f46', icon: '🟢' };
-      case 4: // Driver
-        return { backgroundColor: '#fef3c7', textColor: '#92400e', icon: '🟡' };
+      case 1:
+        return { backgroundColor: '#fee2e2', textColor: '#991b1b', icon: '🔴', label: 'Care Manager' };
+      case 2:
+        return { backgroundColor: '#dbeafe', textColor: '#1e40af', icon: '🔵', label: 'Carer' };
+      case 3:
+        return { backgroundColor: '#d1fae5', textColor: '#065f46', icon: '🟢', label: 'Nurse' };
+      case 4:
+        return { backgroundColor: '#fef3c7', textColor: '#92400e', icon: '🟡', label: 'Driver' };
       default:
-        return { backgroundColor: '#f1f5f9', textColor: '#475569', icon: '⚪' };
+        return { backgroundColor: '#f1f5f9', textColor: '#475569', icon: '⚪', label: 'Staff' };
     }
   };
 
   if (loading) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#2563eb" />
-        <Text style={styles.loadingText}>Loading staff details...</Text>
-      </View>
+      <ScreenWrapper>
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color="#2563eb" />
+          <Text style={styles.loadingText}>Loading staff details...</Text>
+        </View>
+      </ScreenWrapper>
     );
   }
 
   if (!staff) {
     return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.errorText}>Staff member not found</Text>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Text style={styles.backButtonText}>← Go Back</Text>
-        </TouchableOpacity>
-      </View>
+      <ScreenWrapper>
+        <View style={styles.centerContainer}>
+          <Text style={styles.errorText}>Staff member not found</Text>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.backButtonText}>← Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </ScreenWrapper>
     );
   }
 
   const roleBadge = getRoleBadgeStyle(staff.role_id);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -142,12 +146,15 @@ export default function StaffDetailScreen({ route, navigation }: StaffDetailScre
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content}>
-        {/* Avatar & Name Section */}
+      <ScrollView 
+        style={styles.content}
+        contentContainerStyle={{ paddingBottom: 40 }}
+      >
+        {/* Profile Section */}
         <View style={styles.profileSection}>
           <View style={styles.avatarLarge}>
             <Text style={styles.avatarLargeText}>
-              {staff.first_name.charAt(0)}{staff.last_name.charAt(0)}
+              {staff.first_name?.charAt(0)}{staff.last_name?.charAt(0)}
             </Text>
           </View>
           <Text style={styles.staffNameLarge}>
@@ -161,34 +168,33 @@ export default function StaffDetailScreen({ route, navigation }: StaffDetailScre
         {/* Role Badge */}
         <View style={[styles.roleCard, { backgroundColor: roleBadge.backgroundColor }]}>
           <Text style={[styles.roleTextLarge, { color: roleBadge.textColor }]}>
-            {roleBadge.icon} {staff.role_name}
+            {roleBadge.icon} {roleBadge.label}
           </Text>
         </View>
 
         {/* Contact Information */}
-<View style={styles.section}>
-  <Text style={styles.sectionTitle}>Contact Information</Text>
-  
-  {staff.phone && (
-    <View style={styles.infoRow}>
-      <Text style={styles.infoLabel}>📞 Phone:</Text>
-      <Text style={styles.infoValue}>{staff.phone}</Text>
-    </View>
-  )}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Contact Information</Text>
+          
+          {staff.phone && (
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>📞 Phone:</Text>
+              <Text style={styles.infoValue}>{staff.phone}</Text>
+            </View>
+          )}
 
-  <View style={styles.infoRow}>
-    <Text style={styles.infoLabel}>📱 Mobile:</Text>
-    <Text style={styles.infoValue}>{staff.mobile}</Text>
-  </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>📱 Mobile:</Text>
+            <Text style={styles.infoValue}>{staff.mobile}</Text>
+          </View>
 
-  {staff.email && (
-    <View style={styles.infoRow}>
-      <Text style={styles.infoLabel}>✉️ Email:</Text>
-      <Text style={styles.infoValue}>{staff.email}</Text>
-    </View>
-  )}
-</View>
-
+          {staff.email && (
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>✉️ Email:</Text>
+              <Text style={styles.infoValue}>{staff.email}</Text>
+            </View>
+          )}
+        </View>
 
         {/* Address Information */}
         {(staff.address_line1 || staff.town || staff.postcode) && (
@@ -299,23 +305,16 @@ export default function StaffDetailScreen({ route, navigation }: StaffDetailScre
             <Text style={styles.deleteButtonText}>🗑️ Delete Staff Member</Text>
           </TouchableOpacity>
         </View>
-
-        <View style={{ height: 40 }} />
       </ScrollView>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-  },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
   },
   loadingText: {
     marginTop: 12,

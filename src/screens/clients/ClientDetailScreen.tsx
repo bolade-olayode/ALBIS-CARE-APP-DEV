@@ -9,9 +9,9 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
-  SafeAreaView,
 } from 'react-native';
-import { clientApi, Client } from '../../services/api/clientApi';
+import { ScreenWrapper } from '../../components';
+import { clientApi } from '../../services/api/clientApi';
 
 interface ClientDetailScreenProps {
   route: any;
@@ -20,7 +20,7 @@ interface ClientDetailScreenProps {
 
 export default function ClientDetailScreen({ route, navigation }: ClientDetailScreenProps) {
   const { clientId } = route.params;
-  const [client, setClient] = useState<Client | null>(null);
+  const [client, setClient] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -83,50 +83,51 @@ export default function ClientDetailScreen({ route, navigation }: ClientDetailSc
     );
   };
 
-  const getCareLevelStyle = (careLevel?: string) => {
-    const level = careLevel?.toLowerCase() || 'low';
-    
-    switch (level) {
+  const getCareLevelBadgeStyle = (careLevel: string) => {
+    switch (careLevel?.toLowerCase()) {
       case 'complex':
-        return { backgroundColor: '#fee2e2', textColor: '#991b1b', icon: '🔴' };
+        return { backgroundColor: '#fee2e2', textColor: '#991b1b', label: '🔴 Complex' };
       case 'high':
-        return { backgroundColor: '#fed7aa', textColor: '#9a3412', icon: '🟠' };
+        return { backgroundColor: '#fed7aa', textColor: '#9a3412', label: '🟠 High' };
       case 'medium':
-        return { backgroundColor: '#fef3c7', textColor: '#92400e', icon: '🟡' };
+        return { backgroundColor: '#fef3c7', textColor: '#92400e', label: '🟡 Medium' };
       case 'low':
-        return { backgroundColor: '#d1fae5', textColor: '#065f46', icon: '🟢' };
       default:
-        return { backgroundColor: '#f1f5f9', textColor: '#475569', icon: '⚪' };
+        return { backgroundColor: '#d1fae5', textColor: '#065f46', label: '🟢 Low' };
     }
   };
 
   if (loading) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#2563eb" />
-        <Text style={styles.loadingText}>Loading client details...</Text>
-      </View>
+      <ScreenWrapper>
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color="#2563eb" />
+          <Text style={styles.loadingText}>Loading client details...</Text>
+        </View>
+      </ScreenWrapper>
     );
   }
 
   if (!client) {
     return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.errorText}>Client not found</Text>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Text style={styles.backButtonText}>← Go Back</Text>
-        </TouchableOpacity>
-      </View>
+      <ScreenWrapper>
+        <View style={styles.centerContainer}>
+          <Text style={styles.errorText}>Client not found</Text>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.backButtonText}>← Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </ScreenWrapper>
     );
   }
 
-  const careLevelStyle = getCareLevelStyle(client.care_level);
+  const careLevelBadge = getCareLevelBadgeStyle(client.care_level);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -144,12 +145,15 @@ export default function ClientDetailScreen({ route, navigation }: ClientDetailSc
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content}>
-        {/* Avatar & Name Section */}
+      <ScrollView 
+        style={styles.content}
+        contentContainerStyle={{ paddingBottom: 40 }}
+      >
+        {/* Profile Section */}
         <View style={styles.profileSection}>
           <View style={styles.avatarLarge}>
             <Text style={styles.avatarLargeText}>
-              {client.cFName.charAt(0)}{client.cLName.charAt(0)}
+              {client.cFName?.charAt(0)}{client.cLName?.charAt(0)}
             </Text>
           </View>
           <Text style={styles.clientNameLarge}>
@@ -161,22 +165,22 @@ export default function ClientDetailScreen({ route, navigation }: ClientDetailSc
         </View>
 
         {/* Care Level Badge */}
-        {client.care_level && (
-          <View style={[styles.careLevelCard, { backgroundColor: careLevelStyle.backgroundColor }]}>
-            <Text style={[styles.careLevelTextLarge, { color: careLevelStyle.textColor }]}>
-              {careLevelStyle.icon} Care Level: {client.care_level?.toUpperCase()}
-            </Text>
-          </View>
-        )}
+        <View style={[styles.careLevelCard, { backgroundColor: careLevelBadge.backgroundColor }]}>
+          <Text style={[styles.careLevelTextLarge, { color: careLevelBadge.textColor }]}>
+            {careLevelBadge.label}
+          </Text>
+        </View>
 
         {/* Contact Information */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Contact Information</Text>
           
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>📞 Phone:</Text>
-            <Text style={styles.infoValue}>{client.cTel || 'N/A'}</Text>
-          </View>
+          {client.cTel && (
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>📞 Phone:</Text>
+              <Text style={styles.infoValue}>{client.cTel}</Text>
+            </View>
+          )}
 
           {client.cMobile && (
             <View style={styles.infoRow}>
@@ -194,36 +198,46 @@ export default function ClientDetailScreen({ route, navigation }: ClientDetailSc
         </View>
 
         {/* Address Information */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Address</Text>
-          
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>🏠 Address:</Text>
-            <Text style={styles.infoValue}>
-              {client.cAddr1}
-              {client.cAddr2 ? `\n${client.cAddr2}` : ''}
-            </Text>
-          </View>
+        {(client.cAddr1 || client.cTown || client.cPostCode) && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Address</Text>
+            
+            {client.cAddr1 && (
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>🏠 Address:</Text>
+                <Text style={styles.infoValue}>
+                  {client.cAddr1}
+                  {client.cAddr2 ? `\n${client.cAddr2}` : ''}
+                </Text>
+              </View>
+            )}
 
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>📍 Town:</Text>
-            <Text style={styles.infoValue}>{client.cTown || 'N/A'}</Text>
-          </View>
+            {client.cTown && (
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>📍 Town:</Text>
+                <Text style={styles.infoValue}>{client.cTown}</Text>
+              </View>
+            )}
 
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>📮 Postcode:</Text>
-            <Text style={styles.infoValue}>{client.cPostCode}</Text>
+            {client.cPostCode && (
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>📮 Postcode:</Text>
+                <Text style={styles.infoValue}>{client.cPostCode}</Text>
+              </View>
+            )}
           </View>
-        </View>
+        )}
 
         {/* Personal Information */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Personal Information</Text>
           
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>👤 Gender:</Text>
-            <Text style={styles.infoValue}>{client.cGender || 'N/A'}</Text>
-          </View>
+          {client.cGender && (
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>👤 Gender:</Text>
+              <Text style={styles.infoValue}>{client.cGender}</Text>
+            </View>
+          )}
 
           {client.date_of_birth && (
             <View style={styles.infoRow}>
@@ -240,27 +254,7 @@ export default function ClientDetailScreen({ route, navigation }: ClientDetailSc
           )}
         </View>
 
-        {/* Care Plan */}
-        {client.cCarePlan && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Care Plan</Text>
-            <View style={styles.textBlock}>
-              <Text style={styles.textBlockContent}>{client.cCarePlan}</Text>
-            </View>
-          </View>
-        )}
-
-        {/* Medical Notes */}
-        {client.cRemarks && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Medical Notes & Remarks</Text>
-            <View style={[styles.textBlock, styles.warningBlock]}>
-              <Text style={styles.textBlockContent}>{client.cRemarks}</Text>
-            </View>
-          </View>
-        )}
-
-        {/* Care Dates */}
+        {/* Care Information */}
         {(client.cSDate || client.cEDate) && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Care Period</Text>
@@ -274,10 +268,26 @@ export default function ClientDetailScreen({ route, navigation }: ClientDetailSc
 
             {client.cEDate && (
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>🏁 End Date:</Text>
+                <Text style={styles.infoLabel}>📅 End Date:</Text>
                 <Text style={styles.infoValue}>{client.cEDate}</Text>
               </View>
             )}
+          </View>
+        )}
+
+        {/* Care Plan */}
+        {client.cCarePlan && (
+          <View style={[styles.section, styles.carePlanSection]}>
+            <Text style={styles.sectionTitle}>Care Plan</Text>
+            <Text style={styles.carePlanText}>{client.cCarePlan}</Text>
+          </View>
+        )}
+
+        {/* Medical Notes */}
+        {client.cRemarks && (
+          <View style={[styles.section, styles.remarksSection]}>
+            <Text style={styles.sectionTitle}>Medical Notes & Remarks</Text>
+            <Text style={styles.remarksText}>{client.cRemarks}</Text>
           </View>
         )}
 
@@ -290,23 +300,16 @@ export default function ClientDetailScreen({ route, navigation }: ClientDetailSc
             <Text style={styles.deleteButtonText}>🗑️ Delete Client</Text>
           </TouchableOpacity>
         </View>
-
-        <View style={{ height: 40 }} />
       </ScrollView>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-  },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
   },
   loadingText: {
     marginTop: 12,
@@ -429,7 +432,7 @@ const styles = StyleSheet.create({
   infoLabel: {
     fontSize: 14,
     color: '#64748b',
-    width: 120,
+    width: 140,
     fontWeight: '500',
   },
   infoValue: {
@@ -437,18 +440,21 @@ const styles = StyleSheet.create({
     color: '#1e293b',
     flex: 1,
   },
-  textBlock: {
-    backgroundColor: '#f8fafc',
-    padding: 12,
-    borderRadius: 8,
-    borderLeftWidth: 3,
+  carePlanSection: {
+    borderLeftWidth: 4,
     borderLeftColor: '#2563eb',
   },
-  warningBlock: {
-    backgroundColor: '#fef3c7',
+  carePlanText: {
+    fontSize: 14,
+    color: '#1e293b',
+    lineHeight: 20,
+  },
+  remarksSection: {
+    backgroundColor: '#fffbeb',
+    borderLeftWidth: 4,
     borderLeftColor: '#f59e0b',
   },
-  textBlockContent: {
+  remarksText: {
     fontSize: 14,
     color: '#1e293b',
     lineHeight: 20,

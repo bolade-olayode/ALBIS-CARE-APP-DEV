@@ -1,35 +1,60 @@
-// src/screens/dashboard/AdminDashboard.tsx
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   ScrollView,
-  Alert,
+  SafeAreaView,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface AdminDashboardProps {
-  navigation: any;  // ← Add this
   userData: any;
   onLogout: () => void;
+  navigation: any;
 }
 
-export default function AdminDashboard({ navigation, userData, onLogout }: AdminDashboardProps) {
-  const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Logout', style: 'destructive', onPress: onLogout },
-      ]
-    );
-  };
+export default function AdminDashboard({ userData, onLogout, navigation }: AdminDashboardProps) {
+  const [clientCount, setClientCount] = useState<number>(0);
+  const [staffCount, setStaffCount] = useState<number>(0);
+  const [loading, setLoading] = useState(true);
 
-  const staff = userData.staff;
+  useEffect(() => {
+    loadStats();
+  }, []);
+
+  const loadStats = async () => {
+    try {
+      const token = await AsyncStorage.getItem('authToken');
+
+      // Load client count
+      const clientResponse = await fetch('https://albiscare.co.uk/api/v1/clients/', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const clientData = await clientResponse.json();
+      if (clientData.success) {
+        setClientCount(clientData.data?.total || 0);
+      }
+
+      // Load staff count
+      const staffResponse = await fetch('https://albiscare.co.uk/api/v1/staff/', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const staffData = await staffResponse.json();
+      if (staffData.success) {
+        setStaffCount(staffData.data?.total || 0);
+      }
+    } catch (error) {
+      console.error('Error loading stats:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -38,10 +63,9 @@ export default function AdminDashboard({ navigation, userData, onLogout }: Admin
         <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>Welcome back,</Text>
-            <Text style={styles.name}>{staff?.firstName} {staff?.lastName}</Text>
-            <Text style={styles.role}>{staff?.roleName}</Text>
+            <Text style={styles.roleBadge}>Care Manager</Text>
           </View>
-          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+          <TouchableOpacity style={styles.logoutButton} onPress={onLogout}>
             <Text style={styles.logoutText}>Logout</Text>
           </TouchableOpacity>
         </View>
@@ -49,54 +73,75 @@ export default function AdminDashboard({ navigation, userData, onLogout }: Admin
         {/* Quick Stats */}
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
-            <Text style={styles.statNumber}>--</Text>
+            <Text style={styles.statNumber}>{loading ? '...' : clientCount}</Text>
             <Text style={styles.statLabel}>Total Clients</Text>
           </View>
+          
           <View style={styles.statCard}>
-            <Text style={styles.statNumber}>--</Text>
+            <Text style={styles.statNumber}>{loading ? '...' : staffCount}</Text>
             <Text style={styles.statLabel}>Active Staff</Text>
           </View>
+          
           <View style={styles.statCard}>
-            <Text style={styles.statNumber}>--</Text>
+            <Text style={styles.statNumber}>0</Text>
             <Text style={styles.statLabel}>Today's Visits</Text>
           </View>
         </View>
 
         {/* Quick Actions */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-          
-                   <TouchableOpacity 
+        <Text style={styles.sectionTitle}>Quick Actions</Text>
+
+        <TouchableOpacity
+          style={styles.actionCard}
+          onPress={() => navigation.navigate('StaffList')}
+        >
+          <Text style={styles.actionIcon}>👨‍⚕️</Text>
+          <View style={styles.actionContent}>
+            <Text style={styles.actionTitle}>Manage Staff</Text>
+            <Text style={styles.actionDescription}>View and manage staff members</Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.actionCard}
+          onPress={() => navigation.navigate('ClientList')}
+        >
+          <Text style={styles.actionIcon}>👥</Text>
+          <View style={styles.actionContent}>
+            <Text style={styles.actionTitle}>Manage Clients</Text>
+            <Text style={styles.actionDescription}>View and manage care users</Text>
+          </View>
+        </TouchableOpacity>
+
+<TouchableOpacity
   style={styles.actionCard}
-  onPress={() => navigation.navigate('StaffList')}
+  onPress={() => navigation.navigate('CareLogList')}
 >
-  <Text style={styles.actionTitle}>👨‍⚕️ Manage Staff</Text>
-  <Text style={styles.actionDescription}>View and manage staff members</Text>
+  <Text style={styles.actionIcon}>📋</Text>
+  <View style={styles.actionContent}>
+    <Text style={styles.actionTitle}>Care Logs</Text>
+    <Text style={styles.actionDescription}>View and manage care visit logs</Text>
+  </View>
 </TouchableOpacity>
 
-         <TouchableOpacity 
+      <TouchableOpacity
   style={styles.actionCard}
-  onPress={() => navigation.navigate('ClientList')}
+  onPress={() => navigation.navigate('VisitList')}
 >
-  <Text style={styles.actionTitle}>🏥 Manage Clients</Text>
-  <Text style={styles.actionDescription}>View and manage care users</Text>
+  <Text style={styles.actionIcon}>📅</Text>
+  <View style={styles.actionContent}>
+    <Text style={styles.actionTitle}>Schedule Visits</Text>
+    <Text style={styles.actionDescription}>Create and manage care visits</Text>
+  </View>
 </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionCard}>
-            <Text style={styles.actionTitle}>📅 Schedule Visits</Text>
-            <Text style={styles.actionDescription}>Create and manage care visits</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionCard}>
-            <Text style={styles.actionTitle}>📊 View Reports</Text>
+        <TouchableOpacity style={styles.actionCard}>
+          <Text style={styles.actionIcon}>📊</Text>
+          <View style={styles.actionContent}>
+            <Text style={styles.actionTitle}>View Reports</Text>
             <Text style={styles.actionDescription}>Analytics and insights</Text>
-          </TouchableOpacity>
-          
-
-
-
-
-        </View>
+          </View>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -112,33 +157,24 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: '#2563eb',
-    padding: 24,
+    padding: 20,
+    paddingTop: 60,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
   },
   greeting: {
     fontSize: 16,
-    color: 'rgba(255,255,255,0.9)',
+    color: 'rgba(255, 255, 255, 0.9)',
     marginBottom: 4,
   },
-  name: {
-    fontSize: 24,
+  roleBadge: {
+    fontSize: 20,
     fontWeight: 'bold',
     color: 'white',
-    marginBottom: 4,
   },
-  role: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
-  },
-  logoutBtn: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
+  logoutButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
@@ -150,6 +186,7 @@ const styles = StyleSheet.create({
   },
   statsContainer: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     padding: 16,
     gap: 12,
   },
@@ -160,15 +197,15 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: 3,
+    elevation: 2,
   },
   statNumber: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#2563eb',
+    color: '#1e293b',
     marginBottom: 4,
   },
   statLabel: {
@@ -176,25 +213,34 @@ const styles = StyleSheet.create({
     color: '#64748b',
     textAlign: 'center',
   },
-  section: {
-    padding: 16,
-  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#1e293b',
-    marginBottom: 16,
+    paddingHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 12,
   },
   actionCard: {
     backgroundColor: 'white',
+    marginHorizontal: 16,
+    marginBottom: 12,
     padding: 16,
     borderRadius: 12,
-    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
     elevation: 2,
+  },
+  actionIcon: {
+    fontSize: 32,
+    marginRight: 16,
+  },
+  actionContent: {
+    flex: 1,
   },
   actionTitle: {
     fontSize: 16,

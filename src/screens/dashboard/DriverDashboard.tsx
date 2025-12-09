@@ -1,4 +1,4 @@
-// src/screens/dashboard/StaffDashboard.tsx
+// src/screens/dashboard/DriverDashboard.tsx
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -12,27 +12,27 @@ import {
   Alert,
 } from 'react-native';
 import { ScreenWrapper } from '../../components';
-import { visitApi } from '../../services/api/visitApi';
+import { transportApi } from '../../services/api/transportApi';
 
-interface StaffDashboardProps {
+interface DriverDashboardProps {
   navigation?: any;
   userData?: any;
   onLogout?: () => void;
 }
 
-export default function StaffDashboard({ navigation, userData, onLogout }: StaffDashboardProps) {
+export default function DriverDashboard({ navigation, userData, onLogout }: DriverDashboardProps) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [todayVisits, setTodayVisits] = useState<any[]>([]);
-  const [upcomingVisits, setUpcomingVisits] = useState<any[]>([]);
+  const [todayTransports, setTodayTransports] = useState<any[]>([]);
+  const [upcomingTransports, setUpcomingTransports] = useState<any[]>([]);
   const [stats, setStats] = useState({
     today: 0,
     upcoming: 0,
     completed: 0,
   });
 
-  const staffId = userData?.staff?.staff_id || userData?.user?.id || 0;
-  const staffName = userData?.staff?.name || 'Staff Member';
+  const driverId = userData?.staff?.staff_id || userData?.user?.id || 0;
+  const driverName = userData?.staff?.name || 'Driver';
 
   useEffect(() => {
     loadDashboardData();
@@ -44,36 +44,36 @@ export default function StaffDashboard({ navigation, userData, onLogout }: Staff
 
       const today = new Date().toISOString().split('T')[0];
       
-      const todayResponse = await visitApi.getStaffVisits(staffId, today, today);
+      const todayResponse = await transportApi.getDriverTodaySchedule(driverId);
       
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
       const nextWeek = new Date();
       nextWeek.setDate(nextWeek.getDate() + 7);
       
-      const upcomingResponse = await visitApi.getStaffVisits(
-        staffId,
-        tomorrow.toISOString().split('T')[0],
-        nextWeek.toISOString().split('T')[0]
-      );
+      const upcomingResponse = await transportApi.getTransports({
+        driver_id: driverId,
+        start_date: tomorrow.toISOString().split('T')[0],
+        end_date: nextWeek.toISOString().split('T')[0],
+      });
 
       if (todayResponse.success) {
-        const visits = todayResponse.data?.visits || [];
-        setTodayVisits(visits);
+        const transports = todayResponse.data?.transports || [];
+        setTodayTransports(transports);
         
-        const completed = visits.filter((v: any) => v.status === 'completed').length;
+        const completed = transports.filter((t: any) => t.status === 'completed').length;
         
         setStats(prev => ({
           ...prev,
-          today: visits.length,
+          today: transports.length,
           completed: completed,
         }));
       }
 
       if (upcomingResponse.success) {
-        const visits = upcomingResponse.data?.visits || [];
-        setUpcomingVisits(visits);
-        setStats(prev => ({ ...prev, upcoming: visits.length }));
+        const transports = upcomingResponse.data?.transports || [];
+        setUpcomingTransports(transports);
+        setStats(prev => ({ ...prev, upcoming: transports.length }));
       }
 
     } catch (error) {
@@ -111,9 +111,9 @@ export default function StaffDashboard({ navigation, userData, onLogout }: Staff
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'scheduled': return '#3b82f6';
-      case 'confirmed': return '#10b981';
       case 'in_progress': return '#f59e0b';
-      case 'completed': return '#6b7280';
+      case 'completed': return '#10b981';
+      case 'cancelled': return '#ef4444';
       default: return '#6b7280';
     }
   };
@@ -131,7 +131,7 @@ export default function StaffDashboard({ navigation, userData, onLogout }: Staff
     return (
       <ScreenWrapper>
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#2563eb" />
+          <ActivityIndicator size="large" color="#f59e0b" />
           <Text style={styles.loadingText}>Loading your schedule...</Text>
         </View>
       </ScreenWrapper>
@@ -151,7 +151,7 @@ export default function StaffDashboard({ navigation, userData, onLogout }: Staff
         <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>Hello,</Text>
-            <Text style={styles.userName}>{staffName}</Text>
+            <Text style={styles.userName}>{driverName}</Text>
           </View>
           <TouchableOpacity
             style={styles.profileButton}
@@ -165,7 +165,7 @@ export default function StaffDashboard({ navigation, userData, onLogout }: Staff
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
             <Text style={styles.statNumber}>{stats.today}</Text>
-            <Text style={styles.statLabel}>Today's Visits</Text>
+            <Text style={styles.statLabel}>Today's Jobs</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statNumber}>{stats.completed}</Text>
@@ -177,67 +177,98 @@ export default function StaffDashboard({ navigation, userData, onLogout }: Staff
           </View>
         </View>
 
-        {/* Today's Visits */}
+        {/* Today's Transports */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>📅 Today's Schedule</Text>
+            <Text style={styles.sectionTitle}>🚗 Today's Schedule</Text>
             <Text style={styles.sectionDate}>{new Date().toLocaleDateString('en-GB')}</Text>
           </View>
 
-          {todayVisits.length === 0 ? (
+          {todayTransports.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyIcon}>🎉</Text>
-              <Text style={styles.emptyText}>No visits scheduled for today</Text>
+              <Text style={styles.emptyText}>No transports scheduled for today</Text>
             </View>
           ) : (
-            todayVisits.map((visit) => (
+            todayTransports.map((transport) => (
               <TouchableOpacity
-                key={visit.visit_id}
-                style={styles.visitCard}
+                key={transport.transport_id}
+                style={styles.transportCard}
                 onPress={() => {
-                  if (visit.status === 'scheduled' || visit.status === 'confirmed') {
-                    navigation?.navigate('VisitExecution', { 
-                      visitId: visit.visit_id,
+                  if (transport.status === 'scheduled') {
+                    navigation?.navigate('TransportExecution', { 
+                      transportId: transport.transport_id,
                       userData: userData
                     });
                   } else {
-                    navigation?.navigate('VisitDetail', { visitId: visit.visit_id });
+                    navigation?.navigate('TransportDetail', { 
+                      transportId: transport.transport_id 
+                    });
                   }
                 }}
               >
-                <View style={styles.visitHeader}>
-                  <View>
-                    <Text style={styles.clientName}>{visit.client_name}</Text>
-                    <Text style={styles.visitTime}>
-                      🕐 {formatTime(visit.visit_time)} • {visit.estimated_duration || 60} mins
+                <View style={styles.transportHeader}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.clientName}>{transport.client_name}</Text>
+                    <Text style={styles.transportTime}>
+                      🕐 Pickup: {formatTime(transport.pickup_time)}
                     </Text>
                   </View>
                   <View
                     style={[
                       styles.statusBadge,
-                      { backgroundColor: getStatusColor(visit.status) },
+                      { backgroundColor: getStatusColor(transport.status) },
                     ]}
                   >
                     <Text style={styles.statusText}>
-                      {visit.status?.toUpperCase()}
+                      {transport.status?.toUpperCase().replace('_', ' ')}
                     </Text>
                   </View>
                 </View>
 
-                <View style={styles.visitDetails}>
-                  <Text style={styles.visitType}>
-                    📋 {visit.visit_type?.replace('_', ' ')}
-                  </Text>
-                  {visit.special_instructions && (
-                    <Text style={styles.visitInstructions} numberOfLines={2}>
-                      ℹ️ {visit.special_instructions}
-                    </Text>
-                  )}
+                <View style={styles.locationSection}>
+                  <View style={styles.locationRow}>
+                    <Text style={styles.locationIcon}>📍</Text>
+                    <View style={styles.locationInfo}>
+                      <Text style={styles.locationLabel}>Pickup</Text>
+                      <Text style={styles.locationText}>
+                        {transport.pickup_location || `${transport.cAddr1}, ${transport.cTown}`}
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  <View style={styles.locationDivider}>
+                    <Text style={styles.locationArrow}>↓</Text>
+                  </View>
+                  
+                  <View style={styles.locationRow}>
+                    <Text style={styles.locationIcon}>🎯</Text>
+                    <View style={styles.locationInfo}>
+                      <Text style={styles.locationLabel}>Drop-off</Text>
+                      <Text style={styles.locationText}>
+                        {transport.dropoff_location || 'To be confirmed'}
+                      </Text>
+                    </View>
+                  </View>
                 </View>
 
-                {(visit.status === 'scheduled' || visit.status === 'confirmed') && (
-                  <View style={styles.visitAction}>
-                    <Text style={styles.actionText}>Tap to start visit →</Text>
+                {transport.purpose && (
+                  <View style={styles.purposeBox}>
+                    <Text style={styles.purposeText}>📋 {transport.purpose}</Text>
+                  </View>
+                )}
+
+                {transport.special_requirements && (
+                  <View style={styles.requirementsBox}>
+                    <Text style={styles.requirementsText}>
+                      ⚠️ {transport.special_requirements}
+                    </Text>
+                  </View>
+                )}
+
+                {transport.status === 'scheduled' && (
+                  <View style={styles.transportAction}>
+                    <Text style={styles.actionText}>Tap to start transport →</Text>
                   </View>
                 )}
               </TouchableOpacity>
@@ -245,40 +276,45 @@ export default function StaffDashboard({ navigation, userData, onLogout }: Staff
           )}
         </View>
 
-        {/* Upcoming Visits */}
-        {upcomingVisits.length > 0 && (
+        {/* Upcoming Transports */}
+        {upcomingTransports.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>📆 Upcoming This Week</Text>
 
-            {upcomingVisits.slice(0, 5).map((visit) => (
+            {upcomingTransports.slice(0, 5).map((transport) => (
               <TouchableOpacity
-                key={visit.visit_id}
+                key={transport.transport_id}
                 style={styles.upcomingCard}
-                onPress={() => navigation?.navigate('VisitDetail', { visitId: visit.visit_id })}
+                onPress={() => navigation?.navigate('TransportDetail', { 
+                  transportId: transport.transport_id 
+                })}
               >
                 <View style={styles.upcomingDate}>
                   <Text style={styles.upcomingDay}>
-                    {new Date(visit.visit_date).toLocaleDateString('en-GB', { weekday: 'short' })}
+                    {new Date(transport.transport_date).toLocaleDateString('en-GB', { weekday: 'short' })}
                   </Text>
                   <Text style={styles.upcomingDateNum}>
-                    {new Date(visit.visit_date).getDate()}
+                    {new Date(transport.transport_date).getDate()}
                   </Text>
                 </View>
                 <View style={styles.upcomingInfo}>
-                  <Text style={styles.upcomingClient}>{visit.client_name}</Text>
+                  <Text style={styles.upcomingClient}>{transport.client_name}</Text>
                   <Text style={styles.upcomingTime}>
-                    {formatTime(visit.visit_time)} • {visit.visit_type?.replace('_', ' ')}
+                    {formatTime(transport.pickup_time)} • {transport.transport_type}
+                  </Text>
+                  <Text style={styles.upcomingLocation} numberOfLines={1}>
+                    📍 {transport.pickup_location || transport.cTown}
                   </Text>
                 </View>
               </TouchableOpacity>
             ))}
 
-            {upcomingVisits.length > 5 && (
+            {upcomingTransports.length > 5 && (
               <TouchableOpacity
                 style={styles.viewAllButton}
-                onPress={() => navigation?.navigate('MySchedule')}
+                onPress={() => navigation?.navigate('MyTransports')}
               >
-                <Text style={styles.viewAllText}>View All Upcoming Visits →</Text>
+                <Text style={styles.viewAllText}>View All Upcoming Transports →</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -290,23 +326,23 @@ export default function StaffDashboard({ navigation, userData, onLogout }: Staff
 
           <TouchableOpacity
             style={styles.actionCard}
-            onPress={() => navigation?.navigate('MyCareLogs')}
+            onPress={() => navigation?.navigate('MyTransportLogs')}
           >
             <Text style={styles.actionIcon}>📋</Text>
             <View style={styles.actionContent}>
-              <Text style={styles.actionTitle}>My Care Logs</Text>
-              <Text style={styles.actionDescription}>View your completed care logs</Text>
+              <Text style={styles.actionTitle}>My Transport Logs</Text>
+              <Text style={styles.actionDescription}>View your completed transports</Text>
             </View>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.actionCard}
-            onPress={() => navigation?.navigate('MySchedule')}
+            onPress={() => navigation?.navigate('MyTransports')}
           >
-            <Text style={styles.actionIcon}>📅</Text>
+            <Text style={styles.actionIcon}>🗓️</Text>
             <View style={styles.actionContent}>
               <Text style={styles.actionTitle}>Full Schedule</Text>
-              <Text style={styles.actionDescription}>View all your assigned visits</Text>
+              <Text style={styles.actionDescription}>View all your assigned transports</Text>
             </View>
           </TouchableOpacity>
 
@@ -342,7 +378,7 @@ const styles = StyleSheet.create({
     color: '#64748b',
   },
   header: {
-    backgroundColor: '#2563eb',
+    backgroundColor: '#f59e0b',
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 30,
@@ -352,7 +388,7 @@ const styles = StyleSheet.create({
   },
   greeting: {
     fontSize: 16,
-    color: '#93c5fd',
+    color: '#fef3c7',
   },
   userName: {
     fontSize: 24,
@@ -435,7 +471,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#64748b',
   },
-  visitCard: {
+  transportCard: {
     backgroundColor: 'white',
     padding: 16,
     borderRadius: 12,
@@ -446,18 +482,18 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 2,
   },
-  visitHeader: {
+  transportHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   clientName: {
     fontSize: 18,
     fontWeight: '600',
     color: '#1e293b',
   },
-  visitTime: {
+  transportTime: {
     fontSize: 14,
     color: '#64748b',
     marginTop: 4,
@@ -472,28 +508,73 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
   },
-  visitDetails: {
-    gap: 8,
+  locationSection: {
+    backgroundColor: '#f8fafc',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
   },
-  visitType: {
-    fontSize: 14,
-    color: '#475569',
-    textTransform: 'capitalize',
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
   },
-  visitInstructions: {
-    fontSize: 13,
+  locationIcon: {
+    fontSize: 20,
+    marginRight: 8,
+    marginTop: 2,
+  },
+  locationInfo: {
+    flex: 1,
+  },
+  locationLabel: {
+    fontSize: 11,
     color: '#64748b',
-    fontStyle: 'italic',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    marginBottom: 2,
   },
-  visitAction: {
-    marginTop: 12,
+  locationText: {
+    fontSize: 14,
+    color: '#1e293b',
+    fontWeight: '500',
+  },
+  locationDivider: {
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  locationArrow: {
+    fontSize: 16,
+    color: '#94a3b8',
+  },
+  purposeBox: {
+    backgroundColor: '#eff6ff',
+    padding: 10,
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  purposeText: {
+    fontSize: 13,
+    color: '#1e40af',
+  },
+  requirementsBox: {
+    backgroundColor: '#fef3c7',
+    padding: 10,
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  requirementsText: {
+    fontSize: 13,
+    color: '#92400e',
+  },
+  transportAction: {
+    marginTop: 8,
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: '#f1f5f9',
   },
   actionText: {
     fontSize: 14,
-    color: '#2563eb',
+    color: '#f59e0b',
     fontWeight: '600',
     textAlign: 'center',
   },
@@ -523,7 +604,7 @@ const styles = StyleSheet.create({
   upcomingDateNum: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#2563eb',
+    color: '#f59e0b',
   },
   upcomingInfo: {
     flex: 1,
@@ -537,7 +618,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#64748b',
     marginTop: 4,
-    textTransform: 'capitalize',
+  },
+  upcomingLocation: {
+    fontSize: 13,
+    color: '#64748b',
+    marginTop: 2,
   },
   viewAllButton: {
     backgroundColor: '#f8fafc',
@@ -549,7 +634,7 @@ const styles = StyleSheet.create({
   },
   viewAllText: {
     fontSize: 14,
-    color: '#2563eb',
+    color: '#f59e0b',
     fontWeight: '600',
   },
   actionCard: {
