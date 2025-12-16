@@ -1,6 +1,6 @@
 // src/screens/visits/VisitDetailScreen.tsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,8 +10,11 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ScreenWrapper } from '../../components';
-import { visitApi, ScheduledVisit } from '../../services/api/visitApi';
+import { visitApi } from '../../services/api/visitApi';
+import { formatDate } from '../../utils/dateFormatter';
+import { useFocusEffect } from '@react-navigation/native';
 
 interface VisitDetailScreenProps {
   route: any;
@@ -20,124 +23,87 @@ interface VisitDetailScreenProps {
 
 export default function VisitDetailScreen({ route, navigation }: VisitDetailScreenProps) {
   const { visitId } = route.params;
-  const [visit, setVisit] = useState<ScheduledVisit | null>(null);
+  const [visit, setVisit] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
-  useEffect(() => {
-    loadVisitDetails();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadVisitDetails();
+      getCurrentUser();
+    }, [visitId])
+  );
+
+  // 1. Get Logged-in User for Security Check
+  const getCurrentUser = async () => {
+    try {
+      const jsonValue = await AsyncStorage.getItem('userData');
+      if (jsonValue != null) {
+        setCurrentUser(JSON.parse(jsonValue));
+      }
+    } catch (e) {
+      console.error("Failed to load user", e);
+    }
+  };
 
   const loadVisitDetails = async () => {
     try {
       setLoading(true);
       const response = await visitApi.getVisit(visitId);
-
       if (response.success && response.data) {
         setVisit(response.data.visit);
       } else {
-        Alert.alert('Error', response.message || 'Failed to load visit details');
+        Alert.alert('Error', response.message || 'Failed to load details');
       }
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Something went wrong');
+      Alert.alert('Error', 'Network error');
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = () => {
-    Alert.alert(
-      'Delete Visit',
-      'Are you sure you want to delete this scheduled visit? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const response = await visitApi.deleteVisit(visitId);
-
-              if (response.success) {
-                Alert.alert('Success', 'Visit deleted successfully', [
-                  {
-                    text: 'OK',
-                    onPress: () => navigation.goBack(),
-                  },
-                ]);
-              } else {
-                Alert.alert('Error', response.message || 'Failed to delete visit');
-              }
-            } catch (error: any) {
-              Alert.alert('Error', error.message || 'Something went wrong');
-            }
-          },
+    Alert.alert('Delete Visit', 'Are you sure?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await visitApi.deleteVisit(visitId);
+            navigation.goBack();
+          } catch (error) {
+            Alert.alert('Error', 'Failed to delete');
+          }
         },
-      ]
-    );
-  };
-
-  const handleStatusChange = (newStatus: string) => {
-    Alert.alert(
-      'Change Status',
-      `Change visit status to "${newStatus}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Confirm',
-          onPress: async () => {
-            try {
-              const response = await visitApi.updateVisit(visitId, {
-                ...visit,
-                status: newStatus,
-              } as ScheduledVisit);
-
-              if (response.success) {
-                Alert.alert('Success', 'Status updated successfully');
-                loadVisitDetails();
-              } else {
-                Alert.alert('Error', response.message || 'Failed to update status');
-              }
-            } catch (error: any) {
-              Alert.alert('Error', error.message || 'Something went wrong');
-            }
-          },
-        },
-      ]
-    );
+      },
+    ]);
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'scheduled':
-        return '#3b82f6';
-      case 'confirmed':
-        return '#10b981';
-      case 'in_progress':
-        return '#f59e0b';
-      case 'completed':
-        return '#6b7280';
-      case 'cancelled':
-        return '#ef4444';
-      case 'missed':
-        return '#dc2626';
-      default:
-        return '#6b7280';
+      case 'scheduled': return '#3b82f6';
+      case 'confirmed': return '#10b981';
+      case 'completed': return '#6b7280';
+      case 'cancelled': return '#ef4444';
+      default: return '#6b7280';
     }
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'urgent':
-        return '#dc2626';
-      case 'high':
-        return '#f59e0b';
-      case 'normal':
-        return '#3b82f6';
-      case 'low':
-        return '#6b7280';
-      default:
-        return '#6b7280';
+  // 2. Logic: Only allow view if Admin or Assigned Driver
+  const canViewTransportJob = () => {
+    if (!visit || !currentUser) return false;
+    
+    // Admin Override
+    if (currentUser.user?.role === 'admin') return true;
+
+    // Check Driver ID match
+    const staffId = currentUser.staff?.staff_id;
+    // Note: visit.driver_id comes from our new API join
+    if (staffId && visit.driver_id && parseInt(staffId) == parseInt(visit.driver_id)) {
+      return true;
     }
+    return false;
   };
 
   if (loading) {
@@ -145,7 +111,6 @@ export default function VisitDetailScreen({ route, navigation }: VisitDetailScre
       <ScreenWrapper>
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color="#2563eb" />
-          <Text style={styles.loadingText}>Loading visit details...</Text>
         </View>
       </ScreenWrapper>
     );
@@ -156,9 +121,6 @@ export default function VisitDetailScreen({ route, navigation }: VisitDetailScre
       <ScreenWrapper>
         <View style={styles.centerContainer}>
           <Text style={styles.errorText}>Visit not found</Text>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Text style={styles.backButtonText}>← Go Back</Text>
-          </TouchableOpacity>
         </View>
       </ScreenWrapper>
     );
@@ -166,7 +128,6 @@ export default function VisitDetailScreen({ route, navigation }: VisitDetailScre
 
   return (
     <ScreenWrapper>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.headerBackButton} onPress={() => navigation.goBack()}>
           <Text style={styles.headerBackText}>← Back</Text>
@@ -181,43 +142,21 @@ export default function VisitDetailScreen({ route, navigation }: VisitDetailScre
       </View>
 
       <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 40 }}>
-        {/* Client & Staff Info */}
+        {/* Main Info Card */}
         <View style={styles.headerCard}>
           <View style={styles.headerCardTop}>
             <View>
               <Text style={styles.clientNameLarge}>{visit.client_name}</Text>
               <Text style={styles.staffNameLarge}>with {visit.staff_name}</Text>
             </View>
-            <View style={styles.badges}>
-              <View
-                style={[
-                  styles.statusBadgeLarge,
-                  { backgroundColor: getStatusColor(visit.status || 'scheduled') },
-                ]}
-              >
-                <Text style={styles.statusTextLarge}>
-                  {visit.status?.toUpperCase() || 'SCHEDULED'}
-                </Text>
-              </View>
-              {visit.priority && visit.priority !== 'normal' && (
-                <View
-                  style={[
-                    styles.priorityBadgeLarge,
-                    { backgroundColor: getPriorityColor(visit.priority) },
-                  ]}
-                >
-                  <Text style={styles.priorityTextLarge}>
-                    {visit.priority.toUpperCase()}
-                  </Text>
-                </View>
-              )}
+            <View style={[styles.statusBadgeLarge, { backgroundColor: getStatusColor(visit.status) }]}>
+              <Text style={styles.statusTextLarge}>{visit.status?.toUpperCase()}</Text>
             </View>
           </View>
-
           <View style={styles.dateTimeRow}>
             <View style={styles.dateTimeItem}>
               <Text style={styles.dateTimeLabel}>📅 Date</Text>
-              <Text style={styles.dateTimeValue}>{visit.visit_date}</Text>
+              <Text style={styles.dateTimeValue}>{formatDate(visit.visit_date)}</Text>
             </View>
             <View style={styles.dateTimeItem}>
               <Text style={styles.dateTimeLabel}>🕐 Time</Text>
@@ -225,111 +164,67 @@ export default function VisitDetailScreen({ route, navigation }: VisitDetailScre
             </View>
             <View style={styles.dateTimeItem}>
               <Text style={styles.dateTimeLabel}>⏱️ Duration</Text>
-              <Text style={styles.dateTimeValue}>{visit.estimated_duration || 0} mins</Text>
+              <Text style={styles.dateTimeValue}>{visit.estimated_duration} mins</Text>
             </View>
           </View>
         </View>
 
-        {/* Visit Information */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Visit Information</Text>
-
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Visit Type:</Text>
-            <Text style={styles.infoValue}>{visit.visit_type?.replace('_', ' ')}</Text>
-          </View>
-
-          {visit.service_type && (
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Service Type:</Text>
-              <Text style={styles.infoValue}>{visit.service_type}</Text>
-            </View>
-          )}
-
-          {visit.is_recurring === 1 && (
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Recurring:</Text>
-              <Text style={styles.infoValue}>
-                {visit.recurrence_pattern} 
-                {visit.recurrence_end_date && ` (until ${visit.recurrence_end_date})`}
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* Instructions & Notes */}
-        {(visit.special_instructions || visit.notes) && (
+        {/* Transport Details - Shows Driver & Route */}
+        {visit.transport_id && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Instructions & Notes</Text>
-
-            {visit.special_instructions && (
-              <>
-                <Text style={styles.subsectionTitle}>Special Instructions</Text>
-                <View style={styles.detailBox}>
-                  <Text style={styles.detailText}>{visit.special_instructions}</Text>
+            <Text style={styles.sectionTitle}>Transport Details</Text>
+            <View style={styles.transportBox}>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>🚗 Driver:</Text>
+                <Text style={styles.infoValue}>{visit.driver_name || 'Unassigned'}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Status:</Text>
+                <Text style={[styles.infoValue, { color: getStatusColor(visit.transport_status) }]}>
+                  {visit.transport_status?.toUpperCase()}
+                </Text>
+              </View>
+              <View style={{ marginTop: 8 }}>
+                <Text style={styles.infoLabel}>📍 Pickup:</Text>
+                <Text style={styles.routeText}>{visit.pickup_location || 'Office/Home'}</Text>
+                <Text style={styles.arrowText}>⬇</Text>
+                <Text style={styles.infoLabel}>🎯 Dropoff:</Text>
+                <Text style={styles.routeText}>{visit.dropoff_location || 'Client Address'}</Text>
+              </View>
+              
+              {/* BUTTON HIDDEN FOR CARERS/PASSENGERS */}
+              {canViewTransportJob() ? (
+                <TouchableOpacity
+                  style={styles.transportButton}
+                  onPress={() => navigation.navigate('TransportExecution', { transportId: visit.transport_id })}
+                >
+                  <Text style={styles.transportButtonText}>View Job Status / Start</Text>
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.passengerNote}>
+                  <Text style={styles.passengerNoteText}>
+                    ℹ️ You are the passenger. {visit.driver_name ? `Contact ${visit.driver_name} for updates.` : 'Driver not assigned yet.'}
+                  </Text>
                 </View>
-              </>
-            )}
-
-            {visit.notes && (
-              <>
-                <Text style={styles.subsectionTitle}>Notes</Text>
-                <View style={styles.detailBox}>
-                  <Text style={styles.detailText}>{visit.notes}</Text>
-                </View>
-              </>
-            )}
+              )}
+            </View>
           </View>
         )}
 
-        {/* Quick Actions */}
+        {/* Action Buttons */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-
+          <Text style={styles.sectionTitle}>Actions</Text>
           <View style={styles.actionButtons}>
-            {visit.status === 'scheduled' && (
-              <TouchableOpacity
-                style={[styles.actionButton, styles.confirmButton]}
-                onPress={() => handleStatusChange('confirmed')}
-              >
-                <Text style={styles.actionButtonText}>✓ Confirm Visit</Text>
-              </TouchableOpacity>
-            )}
-
-            {(visit.status === 'scheduled' || visit.status === 'confirmed') && (
-              <TouchableOpacity
-                style={[styles.actionButton, styles.startButton]}
-                onPress={() => handleStatusChange('in_progress')}
-              >
-                <Text style={styles.actionButtonText}>▶ Start Visit</Text>
-              </TouchableOpacity>
-            )}
-
-            {visit.status === 'in_progress' && (
-              <TouchableOpacity
-                style={[styles.actionButton, styles.completeButton]}
-                onPress={() => handleStatusChange('completed')}
-              >
-                <Text style={styles.actionButtonText}>✓ Complete Visit</Text>
-              </TouchableOpacity>
-            )}
-
-            {(visit.status === 'scheduled' || visit.status === 'confirmed') && (
-              <TouchableOpacity
-                style={[styles.actionButton, styles.cancelButton]}
-                onPress={() => handleStatusChange('cancelled')}
-              >
-                <Text style={styles.actionButtonText}>✕ Cancel Visit</Text>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity
+              style={[styles.actionButton, styles.startButton]}
+              onPress={() => navigation.navigate('VisitExecution', { visitId: visit.visit_id })}
+            >
+              <Text style={styles.actionButtonText}>▶ Start Visit & Log</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
+              <Text style={styles.deleteButtonText}>🗑️ Delete Visit</Text>
+            </TouchableOpacity>
           </View>
-        </View>
-
-        {/* Delete Button */}
-        <View style={styles.section}>
-          <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-            <Text style={styles.deleteButtonText}>🗑️ Delete Visit</Text>
-          </TouchableOpacity>
         </View>
       </ScrollView>
     </ScreenWrapper>
@@ -337,11 +232,17 @@ export default function VisitDetailScreen({ route, navigation }: VisitDetailScre
 }
 
 const styles = StyleSheet.create({
+  // --- LAYOUT ---
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  content: {
+    flex: 1,
+  },
+  
+  // --- TEXT ---
   loadingText: {
     marginTop: 12,
     fontSize: 14,
@@ -350,8 +251,9 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 16,
     color: '#ef4444',
-    marginBottom: 20,
   },
+
+  // --- HEADER ---
   header: {
     backgroundColor: 'white',
     paddingTop: 10,
@@ -387,9 +289,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 14,
   },
-  content: {
-    flex: 1,
-  },
+
+  // --- MAIN CARD ---
   headerCard: {
     backgroundColor: 'white',
     marginHorizontal: 16,
@@ -418,26 +319,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#64748b',
   },
-  badges: {
-    alignItems: 'flex-end',
-    gap: 4,
-  },
   statusBadgeLarge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
   },
   statusTextLarge: {
-    fontSize: 11,
-    color: 'white',
-    fontWeight: 'bold',
-  },
-  priorityBadgeLarge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  priorityTextLarge: {
     fontSize: 11,
     color: 'white',
     fontWeight: 'bold',
@@ -459,6 +346,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1e293b',
   },
+
+  // --- SECTIONS ---
   section: {
     backgroundColor: 'white',
     marginHorizontal: 16,
@@ -477,42 +366,69 @@ const styles = StyleSheet.create({
     color: '#1e293b',
     marginBottom: 16,
   },
-  subsectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#475569',
-    marginTop: 16,
-    marginBottom: 8,
+
+  // --- TRANSPORT BOX ---
+  transportBox: {
+    backgroundColor: '#fffbeb',
+    padding: 12,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#f59e0b',
   },
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    marginBottom: 8,
   },
   infoLabel: {
     fontSize: 14,
     color: '#64748b',
+    fontWeight: '600',
   },
   infoValue: {
     fontSize: 14,
-    fontWeight: '500',
     color: '#1e293b',
-    textTransform: 'capitalize',
+    fontWeight: 'bold',
   },
-  detailBox: {
-    backgroundColor: '#f8fafc',
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 8,
-  },
-  detailText: {
+  routeText: {
     fontSize: 14,
     color: '#1e293b',
-    lineHeight: 20,
+    fontWeight: '500',
+    marginLeft: 12,
+    marginBottom: 4,
   },
+  arrowText: {
+    fontSize: 16,
+    color: '#94a3b8',
+    marginLeft: 16,
+    marginVertical: 2,
+  },
+  transportButton: {
+    backgroundColor: '#f59e0b',
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 6,
+    marginTop: 12,
+  },
+  transportButtonText: {
+    color: 'white',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  passengerNote: {
+    marginTop: 12,
+    padding: 10,
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    borderRadius: 6,
+  },
+  passengerNoteText: {
+    fontSize: 13,
+    color: '#92400e',
+    fontStyle: 'italic',
+    textAlign: 'center',
+  },
+
+  // --- ACTION BUTTONS ---
   actionButtons: {
     gap: 12,
   },
@@ -521,34 +437,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
   },
-  confirmButton: {
-    backgroundColor: '#10b981',
-  },
   startButton: {
-    backgroundColor: '#f59e0b',
-  },
-  completeButton: {
-    backgroundColor: '#6b7280',
-  },
-  cancelButton: {
-    backgroundColor: '#ef4444',
+    backgroundColor: '#10b981',
   },
   actionButtonText: {
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
-  },
-  backButton: {
-    backgroundColor: '#2563eb',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginTop: 16,
-  },
-  backButtonText: {
-    color: 'white',
-    fontWeight: '600',
-    fontSize: 16,
   },
   deleteButton: {
     backgroundColor: '#ef4444',

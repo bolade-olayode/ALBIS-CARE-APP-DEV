@@ -9,9 +9,12 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { ScreenWrapper, FormScrollView } from '../../components';
 import { staffApi } from '../../services/api/staffApi';
+import { formatDate, parseDate } from '../../utils/dateFormatter';
 
 interface AddStaffScreenProps {
   navigation: any;
@@ -19,6 +22,7 @@ interface AddStaffScreenProps {
 
 export default function AddStaffScreen({ navigation }: AddStaffScreenProps) {
   const [loading, setLoading] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   
   const [formData, setFormData] = useState({
     first_name: '',
@@ -33,7 +37,7 @@ export default function AddStaffScreen({ navigation }: AddStaffScreenProps) {
     town: '',
     postcode: '',
     employment_type: 'full_time',
-    joined_date: new Date().toISOString().split('T')[0],
+    joined_date: formatDate(new Date().toISOString().split('T')[0]), // Initialize with UK Date
     status: 'active',
     pvg_number: '',
     sssc_number: '',
@@ -44,6 +48,14 @@ export default function AddStaffScreen({ navigation }: AddStaffScreenProps) {
 
   const updateField = (field: string, value: string | number) => {
     setFormData({ ...formData, [field]: value });
+  };
+
+  const onDateChange = (event: any, selectedDate?: Date) => {
+    setShowDatePicker(false);
+    if (selectedDate) {
+      const isoDate = selectedDate.toISOString().split('T')[0];
+      updateField('joined_date', formatDate(isoDate));
+    }
   };
 
   const handleSubmit = async () => {
@@ -65,7 +77,13 @@ export default function AddStaffScreen({ navigation }: AddStaffScreenProps) {
     setLoading(true);
 
     try {
-      const response = await staffApi.createStaff(formData);
+      // Convert date back to SQL format (YYYY-MM-DD) before sending
+      const submitData = {
+        ...formData,
+        joined_date: parseDate(formData.joined_date),
+      };
+
+      const response = await staffApi.createStaff(submitData);
 
       if (response.success) {
         const loginMethods = formData.email 
@@ -74,7 +92,7 @@ export default function AddStaffScreen({ navigation }: AddStaffScreenProps) {
           
         Alert.alert(
           'Staff Member Created!',
-          `Login Credentials:\n\n${loginMethods}\n🔑 Password: ${formData.password}\n\n⚠️ Please share these credentials securely with the staff member.\n\n💡 They can login with their mobile number or email.\n💡 They should change this password after first login.`,
+          `Login Credentials:\n\n${loginMethods}\n🔑 Password: ${formData.password}\n\n⚠️ Please share these credentials securely.\n\n💡 They should change this password after first login.`,
           [
             {
               text: 'OK',
@@ -124,7 +142,6 @@ export default function AddStaffScreen({ navigation }: AddStaffScreenProps) {
         {/* Personal Details */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Personal Details</Text>
-
           <Text style={styles.label}>First Name *</Text>
           <TextInput
             style={styles.input}
@@ -132,7 +149,6 @@ export default function AddStaffScreen({ navigation }: AddStaffScreenProps) {
             onChangeText={(text) => updateField('first_name', text)}
             placeholder="Enter first name"
           />
-
           <Text style={styles.label}>Last Name *</Text>
           <TextInput
             style={styles.input}
@@ -145,7 +161,6 @@ export default function AddStaffScreen({ navigation }: AddStaffScreenProps) {
         {/* Role Selection */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Role</Text>
-          
           <View style={styles.radioGroup}>
             {[
               { value: 1, label: '🔴 Care Manager', color: '#fee2e2' },
@@ -180,7 +195,6 @@ export default function AddStaffScreen({ navigation }: AddStaffScreenProps) {
         {/* Contact Information & Login */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Contact Information & Login</Text>
-
           <Text style={styles.label}>Mobile *</Text>
           <TextInput
             style={styles.input}
@@ -189,7 +203,6 @@ export default function AddStaffScreen({ navigation }: AddStaffScreenProps) {
             placeholder="07700900123"
             keyboardType="phone-pad"
           />
-
           <Text style={styles.label}>Phone</Text>
           <TextInput
             style={styles.input}
@@ -198,7 +211,6 @@ export default function AddStaffScreen({ navigation }: AddStaffScreenProps) {
             placeholder="01234567890"
             keyboardType="phone-pad"
           />
-
           <Text style={styles.label}>Email (Optional)</Text>
           <TextInput
             style={styles.input}
@@ -208,7 +220,6 @@ export default function AddStaffScreen({ navigation }: AddStaffScreenProps) {
             keyboardType="email-address"
             autoCapitalize="none"
           />
-
           <Text style={styles.label}>Temporary Password *</Text>
           <TextInput
             style={styles.input}
@@ -218,14 +229,13 @@ export default function AddStaffScreen({ navigation }: AddStaffScreenProps) {
             secureTextEntry
           />
           <Text style={styles.hintText}>
-            💡 This password will be shared with the staff member. They should change it after first login.
+            💡 This password will be shared with the staff member.
           </Text>
         </View>
 
         {/* Address */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Address</Text>
-
           <Text style={styles.label}>Address Line 1</Text>
           <TextInput
             style={styles.input}
@@ -233,7 +243,6 @@ export default function AddStaffScreen({ navigation }: AddStaffScreenProps) {
             onChangeText={(text) => updateField('address_line1', text)}
             placeholder="123 High Street"
           />
-
           <Text style={styles.label}>Address Line 2</Text>
           <TextInput
             style={styles.input}
@@ -241,7 +250,6 @@ export default function AddStaffScreen({ navigation }: AddStaffScreenProps) {
             onChangeText={(text) => updateField('address_line2', text)}
             placeholder="Flat 4"
           />
-
           <Text style={styles.label}>Town</Text>
           <TextInput
             style={styles.input}
@@ -249,7 +257,6 @@ export default function AddStaffScreen({ navigation }: AddStaffScreenProps) {
             onChangeText={(text) => updateField('town', text)}
             placeholder="London"
           />
-
           <Text style={styles.label}>Postcode</Text>
           <TextInput
             style={styles.input}
@@ -260,10 +267,9 @@ export default function AddStaffScreen({ navigation }: AddStaffScreenProps) {
           />
         </View>
 
-        {/* Employment Details */}
+        {/* Employment Details - DATE PICKER */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Employment Details</Text>
-
           <Text style={styles.label}>Employment Type</Text>
           <View style={styles.radioGroup}>
             {[
@@ -292,18 +298,29 @@ export default function AddStaffScreen({ navigation }: AddStaffScreenProps) {
           </View>
 
           <Text style={styles.label}>Joined Date</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.joined_date}
-            onChangeText={(text) => updateField('joined_date', text)}
-            placeholder="YYYY-MM-DD"
-          />
+          <TouchableOpacity
+            style={styles.dateButton}
+            onPress={() => setShowDatePicker(true)}
+          >
+            <Text style={styles.dateButtonText}>
+              {formData.joined_date || 'Select Date'}
+            </Text>
+            <Text style={styles.dateIcon}>📅</Text>
+          </TouchableOpacity>
+
+          {showDatePicker && (
+            <DateTimePicker
+              value={formData.joined_date ? new Date(parseDate(formData.joined_date)) : new Date()}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={onDateChange}
+            />
+          )}
         </View>
 
         {/* Professional Information */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Professional Information</Text>
-
           <Text style={styles.label}>PVG Number</Text>
           <TextInput
             style={styles.input}
@@ -311,7 +328,6 @@ export default function AddStaffScreen({ navigation }: AddStaffScreenProps) {
             onChangeText={(text) => updateField('pvg_number', text)}
             placeholder="Enter PVG number"
           />
-
           <Text style={styles.label}>SSSC Number</Text>
           <TextInput
             style={styles.input}
@@ -319,7 +335,6 @@ export default function AddStaffScreen({ navigation }: AddStaffScreenProps) {
             onChangeText={(text) => updateField('sssc_number', text)}
             placeholder="Enter SSSC number"
           />
-
           <Text style={styles.label}>Qualifications</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
@@ -334,7 +349,6 @@ export default function AddStaffScreen({ navigation }: AddStaffScreenProps) {
         {/* Emergency Contact */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Emergency Contact</Text>
-
           <Text style={styles.label}>Contact Name</Text>
           <TextInput
             style={styles.input}
@@ -342,7 +356,6 @@ export default function AddStaffScreen({ navigation }: AddStaffScreenProps) {
             onChangeText={(text) => updateField('emergency_contact_name', text)}
             placeholder="Enter emergency contact name"
           />
-
           <Text style={styles.label}>Contact Phone</Text>
           <TextInput
             style={styles.input}
@@ -496,5 +509,23 @@ const styles = StyleSheet.create({
   roleButtonTextActive: {
     fontWeight: '600',
     color: '#1e293b',
+  },
+  dateButton: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  dateButtonText: {
+    fontSize: 15,
+    color: '#1e293b',
+  },
+  dateIcon: {
+    fontSize: 16,
   },
 });

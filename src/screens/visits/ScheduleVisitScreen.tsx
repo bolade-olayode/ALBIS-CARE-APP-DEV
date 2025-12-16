@@ -10,11 +10,16 @@ import {
   ActivityIndicator,
   Alert,
   Switch,
+  Platform,
+  Modal,
+  ScrollView,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { ScreenWrapper, FormScrollView } from '../../components';
 import { visitApi } from '../../services/api/visitApi';
 import { clientApi } from '../../services/api/clientApi';
 import { staffApi } from '../../services/api/staffApi';
+import { formatDate, parseDate } from '../../utils/dateFormatter';
 
 interface ScheduleVisitScreenProps {
   navigation: any;
@@ -24,12 +29,19 @@ export default function ScheduleVisitScreen({ navigation }: ScheduleVisitScreenP
   const [loading, setLoading] = useState(false);
   const [clients, setClients] = useState<any[]>([]);
   const [staff, setStaff] = useState<any[]>([]);
+  const [drivers, setDrivers] = useState<any[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+
+  // Date Picker State
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [activeDateField, setActiveDateField] = useState<'visit_date' | 'recurrence_end_date'>('visit_date');
+  const [tempDate, setTempDate] = useState(new Date());
 
   const [formData, setFormData] = useState({
     client_id: '',
     staff_id: '',
-    visit_date: new Date().toISOString().split('T')[0],
+    // Default to Today in UK Format
+    visit_date: formatDate(new Date().toISOString().split('T')[0]),
     visit_time: '09:00',
     estimated_duration: '60',
     visit_type: 'routine',
@@ -38,9 +50,14 @@ export default function ScheduleVisitScreen({ navigation }: ScheduleVisitScreenP
     priority: 'normal',
     status: 'scheduled',
     is_recurring: false,
-    recurrence_pattern: '',
+    recurrence_pattern: 'weekly',
     recurrence_end_date: '',
     notes: '',
+    // Transport Fields
+    requires_transport: false,
+    driver_id: '',
+    pickup_location: '',
+    dropoff_location: '',
   });
 
   useEffect(() => {
@@ -50,18 +67,21 @@ export default function ScheduleVisitScreen({ navigation }: ScheduleVisitScreenP
   const loadClientsAndStaff = async () => {
     try {
       setLoadingData(true);
-      
       const [clientsResponse, staffResponse] = await Promise.all([
         clientApi.getClients(),
         staffApi.getStaff(),
       ]);
 
-      if (clientsResponse.success) {
-        setClients(clientsResponse.data?.clients || []);
-      }
-
+      if (clientsResponse.success) setClients(clientsResponse.data?.clients || []);
       if (staffResponse.success) {
-        setStaff(staffResponse.data?.staff || []);
+        const allStaff = staffResponse.data?.staff || [];
+        setStaff(allStaff);
+        
+        // Filter for drivers based on role name
+        const driverList = allStaff.filter((s: any) => 
+          s.role_name?.toLowerCase() === 'driver' || s.staff_role?.toLowerCase() === 'driver'
+        );
+        setDrivers(driverList);
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -72,6 +92,35 @@ export default function ScheduleVisitScreen({ navigation }: ScheduleVisitScreenP
 
   const updateField = (field: string, value: any) => {
     setFormData({ ...formData, [field]: value });
+  };
+
+  // Open Picker Helper
+  const openDatePicker = (field: 'visit_date' | 'recurrence_end_date') => {
+    setActiveDateField(field);
+    let dateToSet = new Date();
+    if (formData[field]) {
+      dateToSet = new Date(parseDate(formData[field]));
+    } 
+    setTempDate(dateToSet);
+    setShowDatePicker(true);
+  };
+
+  const onDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+      if (selectedDate) {
+        const isoDate = selectedDate.toISOString().split('T')[0];
+        updateField(activeDateField, formatDate(isoDate));
+      }
+    } else {
+      if (selectedDate) setTempDate(selectedDate);
+    }
+  };
+
+  const confirmIOSDate = () => {
+    const isoDate = tempDate.toISOString().split('T')[0];
+    updateField(activeDateField, formatDate(isoDate));
+    setShowDatePicker(false);
   };
 
   const handleSubmit = async () => {
@@ -85,6 +134,11 @@ export default function ScheduleVisitScreen({ navigation }: ScheduleVisitScreenP
       return;
     }
 
+    if (formData.requires_transport && !formData.driver_id) {
+      Alert.alert('Validation Error', 'Please select a driver for the transport');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -93,17 +147,27 @@ export default function ScheduleVisitScreen({ navigation }: ScheduleVisitScreenP
         client_id: parseInt(formData.client_id),
         staff_id: parseInt(formData.staff_id),
         estimated_duration: parseInt(formData.estimated_duration) || 60,
+        // Convert UK Date back to SQL Date
+        visit_date: parseDate(formData.visit_date),
+        recurrence_end_date: formData.recurrence_end_date ? parseDate(formData.recurrence_end_date) : null,
+        // Transport Data
+        requires_transport: formData.requires_transport ? 1 : 0,
+        driver_id: formData.driver_id ? parseInt(formData.driver_id) : null,
       };
 
       const response = await visitApi.createVisit(submitData);
 
       if (response.success) {
-        Alert.alert('Success', 'Visit scheduled successfully!', [
-          {
-            text: 'OK',
-            onPress: () => navigation.goBack(),
-          },
-        ]);
+        Alert.alert(
+          'Success',
+          'Visit scheduled successfully!',
+          [
+            {
+              text: 'OK',
+              onPress: () => navigation.goBack(),
+            },
+          ]
+        );
       } else {
         Alert.alert('Error', response.message || 'Failed to schedule visit');
       }
@@ -129,28 +193,32 @@ export default function ScheduleVisitScreen({ navigation }: ScheduleVisitScreenP
     <ScreenWrapper>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.cancelButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Text style={styles.cancelText}>Cancel</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Schedule Visit</Text>
-        <TouchableOpacity
-          style={[styles.saveButton, loading && styles.saveButtonDisabled]}
-          onPress={handleSubmit}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="white" size="small" />
-          ) : (
-            <Text style={styles.saveText}>Save</Text>
-          )}
-        </TouchableOpacity>
+        <View style={styles.headerContent}>
+          <TouchableOpacity 
+            style={styles.cancelButton} 
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.cancelText}>Cancel</Text>
+          </TouchableOpacity>
+          
+          <Text style={styles.headerTitle}>Schedule Visit</Text>
+          
+          <TouchableOpacity
+            style={[styles.saveButton, loading && styles.saveButtonDisabled]}
+            onPress={handleSubmit}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="white" size="small" />
+            ) : (
+              <Text style={styles.saveText}>Save</Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       <FormScrollView>
-        {/* Visit Details */}
+        {/* Visit Details Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Visit Details</Text>
 
@@ -158,103 +226,90 @@ export default function ScheduleVisitScreen({ navigation }: ScheduleVisitScreenP
           <TouchableOpacity
             style={styles.selectButton}
             onPress={() => {
-              const clientOptions = clients.map(client => ({
-                text: `${client.cFName} ${client.cLName}`,
-                onPress: () => updateField('client_id', client.cNo.toString())
+              const options = clients.map(c => ({ 
+                text: `${c.cFName} ${c.cLName}`, 
+                onPress: () => updateField('client_id', c.cNo.toString()) 
               }));
-              
-              Alert.alert(
-                'Select Client',
-                'Choose a client from the list',
-                [...clientOptions, { text: 'Cancel', style: 'cancel' }],
-                { cancelable: true }
-              );
+              Alert.alert('Select Client', 'Choose a client', [...options, { text: 'Cancel', style: 'cancel' }]);
             }}
           >
             <Text style={formData.client_id ? styles.selectButtonTextFilled : styles.selectButtonText}>
               {formData.client_id 
                 ? (() => {
-                    const selectedClient = clients.find(c => c.cNo.toString() === formData.client_id);
-                    return selectedClient ? `${selectedClient.cFName} ${selectedClient.cLName}` : 'Select a client...';
+                    const client = clients.find(c => c.cNo.toString() === formData.client_id);
+                    return client ? `${client.cFName} ${client.cLName}` : 'Select Client...';
                   })()
-                : 'Select a client...'}
+                : 'Select Client...'}
             </Text>
             <Text style={styles.selectButtonIcon}>▼</Text>
           </TouchableOpacity>
 
-          <Text style={styles.label}>Staff Member *</Text>
+          <Text style={styles.label}>Carer (Staff Member) *</Text>
           <TouchableOpacity
             style={styles.selectButton}
             onPress={() => {
-              const staffOptions = staff.map(member => ({
-                text: member.name,
-                onPress: () => updateField('staff_id', member.id.toString())
+              const options = staff.map(s => ({ 
+                text: s.name, 
+                onPress: () => updateField('staff_id', s.id.toString()) 
               }));
-              
-              Alert.alert(
-                'Select Staff Member',
-                'Choose a staff member from the list',
-                [...staffOptions, { text: 'Cancel', style: 'cancel' }],
-                { cancelable: true }
-              );
+              Alert.alert('Select Staff', 'Choose a staff member', [...options, { text: 'Cancel', style: 'cancel' }]);
             }}
           >
             <Text style={formData.staff_id ? styles.selectButtonTextFilled : styles.selectButtonText}>
               {formData.staff_id 
-                ? staff.find(s => s.id.toString() === formData.staff_id)?.name || 'Select a staff member...'
-                : 'Select a staff member...'}
+                ? staff.find(s => s.id.toString() === formData.staff_id)?.name 
+                : 'Select Staff Member...'}
             </Text>
             <Text style={styles.selectButtonIcon}>▼</Text>
           </TouchableOpacity>
 
+          {/* Date Picker */}
           <Text style={styles.label}>Visit Date *</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.visit_date}
-            onChangeText={(text) => updateField('visit_date', text)}
-            placeholder="YYYY-MM-DD"
-          />
+          <TouchableOpacity 
+            style={styles.dateButton} 
+            onPress={() => openDatePicker('visit_date')}
+          >
+            <Text style={styles.dateButtonText}>
+              {formData.visit_date || 'Select Date'}
+            </Text>
+            <Text style={styles.dateIcon}>📅</Text>
+          </TouchableOpacity>
 
           <Text style={styles.label}>Visit Time *</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.visit_time}
-            onChangeText={(text) => updateField('visit_time', text)}
-            placeholder="HH:MM (e.g., 14:30)"
+          <TextInput 
+            style={styles.input} 
+            value={formData.visit_time} 
+            onChangeText={(text) => updateField('visit_time', text)} 
+            placeholder="HH:MM" 
           />
 
-          <Text style={styles.label}>Estimated Duration (minutes)</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.estimated_duration}
-            onChangeText={(text) => updateField('estimated_duration', text)}
-            placeholder="60"
-            keyboardType="numeric"
+          <Text style={styles.label}>Duration (minutes)</Text>
+          <TextInput 
+            style={styles.input} 
+            value={formData.estimated_duration} 
+            onChangeText={(text) => updateField('estimated_duration', text)} 
+            placeholder="60" 
+            keyboardType="numeric" 
           />
 
           <Text style={styles.label}>Visit Type</Text>
           <View style={styles.radioGroup}>
-            {[
-              { value: 'routine', label: 'Routine' },
-              { value: 'urgent', label: 'Urgent' },
-              { value: 'follow_up', label: 'Follow-up' },
-              { value: 'assessment', label: 'Assessment' },
-            ].map((type) => (
+            {['routine', 'urgent', 'follow_up', 'assessment'].map((type) => (
               <TouchableOpacity
-                key={type.value}
+                key={type}
                 style={[
-                  styles.radioButton,
-                  formData.visit_type === type.value && styles.radioButtonActive,
+                  styles.radioButton, 
+                  formData.visit_type === type && styles.radioButtonActive
                 ]}
-                onPress={() => updateField('visit_type', type.value)}
+                onPress={() => updateField('visit_type', type)}
               >
-                <Text
+                <Text 
                   style={[
-                    styles.radioText,
-                    formData.visit_type === type.value && styles.radioTextActive,
+                    styles.radioText, 
+                    formData.visit_type === type && styles.radioTextActive
                   ]}
                 >
-                  {type.label}
+                  {type.charAt(0).toUpperCase() + type.slice(1).replace('_', ' ')}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -262,119 +317,206 @@ export default function ScheduleVisitScreen({ navigation }: ScheduleVisitScreenP
 
           <Text style={styles.label}>Priority</Text>
           <View style={styles.radioGroup}>
-            {[
-              { value: 'low', label: 'Low' },
-              { value: 'normal', label: 'Normal' },
-              { value: 'high', label: 'High' },
-              { value: 'urgent', label: 'Urgent' },
-            ].map((priority) => (
+            {['low', 'normal', 'high', 'urgent'].map((prio) => (
               <TouchableOpacity
-                key={priority.value}
+                key={prio}
                 style={[
-                  styles.radioButton,
-                  formData.priority === priority.value && styles.radioButtonActive,
+                  styles.radioButton, 
+                  formData.priority === prio && styles.radioButtonActive
                 ]}
-                onPress={() => updateField('priority', priority.value)}
+                onPress={() => updateField('priority', prio)}
               >
-                <Text
+                <Text 
                   style={[
-                    styles.radioText,
-                    formData.priority === priority.value && styles.radioTextActive,
+                    styles.radioText, 
+                    formData.priority === prio && styles.radioTextActive
                   ]}
                 >
-                  {priority.label}
+                  {prio.charAt(0).toUpperCase() + prio.slice(1)}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
         </View>
 
-        {/* Service Details */}
+        {/* Transport Section - NEW */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Service Details</Text>
-
-          <Text style={styles.label}>Service Type</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.service_type}
-            onChangeText={(text) => updateField('service_type', text)}
-            placeholder="e.g., Personal Care, Medication Administration"
-          />
-
-          <Text style={styles.label}>Special Instructions</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            value={formData.special_instructions}
-            onChangeText={(text) => updateField('special_instructions', text)}
-            placeholder="Any special instructions for this visit..."
-            multiline
-            numberOfLines={4}
-          />
-
-          <Text style={styles.label}>Notes</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            value={formData.notes}
-            onChangeText={(text) => updateField('notes', text)}
-            placeholder="Additional notes..."
-            multiline
-            numberOfLines={3}
-          />
-        </View>
-
-        {/* Recurring Visit */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Recurring Visit</Text>
-
+          <Text style={styles.sectionTitle}>Transport</Text>
+          
           <View style={styles.switchRow}>
-            <Text style={styles.switchLabel}>🔄 Make this a recurring visit</Text>
-            <Switch
-              value={formData.is_recurring}
-              onValueChange={(value) => updateField('is_recurring', value)}
-              trackColor={{ false: '#e2e8f0', true: '#93c5fd' }}
-              thumbColor={formData.is_recurring ? '#2563eb' : '#f4f4f5'}
+            <Text style={styles.switchLabel}>🚗 Requires Transport?</Text>
+            <Switch 
+              value={formData.requires_transport} 
+              onValueChange={(value) => updateField('requires_transport', value)} 
+              trackColor={{ false: '#e2e8f0', true: '#f59e0b' }} 
+              thumbColor={formData.requires_transport ? '#ffffff' : '#f4f4f5'} 
             />
           </View>
 
-          {formData.is_recurring && (
+          {formData.requires_transport && (
             <>
-              <Text style={styles.label}>Recurrence Pattern</Text>
-              <View style={styles.radioGroup}>
-                {[
-                  { value: 'daily', label: 'Daily' },
-                  { value: 'weekly', label: 'Weekly' },
-                  { value: 'monthly', label: 'Monthly' },
-                ].map((pattern) => (
-                  <TouchableOpacity
-                    key={pattern.value}
-                    style={[
-                      styles.radioButton,
-                      formData.recurrence_pattern === pattern.value && styles.radioButtonActive,
-                    ]}
-                    onPress={() => updateField('recurrence_pattern', pattern.value)}
-                  >
-                    <Text
-                      style={[
-                        styles.radioText,
-                        formData.recurrence_pattern === pattern.value && styles.radioTextActive,
-                      ]}
-                    >
-                      {pattern.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+              <Text style={styles.label}>Assign Driver *</Text>
+              <TouchableOpacity
+                style={styles.selectButton}
+                onPress={() => {
+                  const options = drivers.map(d => ({ 
+                    text: d.name, 
+                    onPress: () => updateField('driver_id', d.id.toString()) 
+                  }));
+                  
+                  if (drivers.length === 0) {
+                    Alert.alert('No Drivers', 'No staff members with "Driver" role found.');
+                  } else {
+                    Alert.alert('Select Driver', 'Choose a driver', [...options, { text: 'Cancel', style: 'cancel' }]);
+                  }
+                }}
+              >
+                <Text style={formData.driver_id ? styles.selectButtonTextFilled : styles.selectButtonText}>
+                  {formData.driver_id 
+                    ? drivers.find(d => d.id.toString() === formData.driver_id)?.name 
+                    : 'Select Driver...'}
+                </Text>
+                <Text style={styles.selectButtonIcon}>▼</Text>
+              </TouchableOpacity>
 
-              <Text style={styles.label}>Recurrence End Date (Optional)</Text>
-              <TextInput
-                style={styles.input}
-                value={formData.recurrence_end_date}
-                onChangeText={(text) => updateField('recurrence_end_date', text)}
-                placeholder="YYYY-MM-DD (leave empty for no end date)"
+              <Text style={styles.label}>Pickup Location</Text>
+              <TextInput 
+                style={styles.input} 
+                value={formData.pickup_location} 
+                onChangeText={(t) => updateField('pickup_location', t)} 
+                placeholder="e.g. Client's Home Address" 
+              />
+
+              <Text style={styles.label}>Drop-off Location</Text>
+              <TextInput 
+                style={styles.input} 
+                value={formData.dropoff_location} 
+                onChangeText={(t) => updateField('dropoff_location', t)} 
+                placeholder="e.g. Hospital / Day Centre" 
               />
             </>
           )}
         </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Service Details</Text>
+          <Text style={styles.label}>Service Type</Text>
+          <TextInput 
+            style={styles.input} 
+            value={formData.service_type} 
+            onChangeText={(text) => updateField('service_type', text)} 
+            placeholder="e.g. Personal Care" 
+          />
+          
+          <Text style={styles.label}>Special Instructions</Text>
+          <TextInput 
+            style={[styles.input, styles.textArea]} 
+            value={formData.special_instructions} 
+            onChangeText={(text) => updateField('special_instructions', text)} 
+            multiline 
+            numberOfLines={4} 
+          />
+          
+          <Text style={styles.label}>Notes</Text>
+          <TextInput 
+            style={[styles.input, styles.textArea]} 
+            value={formData.notes} 
+            onChangeText={(text) => updateField('notes', text)} 
+            multiline 
+            numberOfLines={3} 
+          />
+        </View>
+
+        {/* Recurring Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Recurring Visit</Text>
+          <View style={styles.switchRow}>
+            <Text style={styles.switchLabel}>🔄 Make this a recurring visit</Text>
+            <Switch 
+              value={formData.is_recurring} 
+              onValueChange={(value) => updateField('is_recurring', value)} 
+              trackColor={{ false: '#e2e8f0', true: '#2563eb' }} 
+              thumbColor={formData.is_recurring ? '#ffffff' : '#f4f4f5'} 
+            />
+          </View>
+          
+          {formData.is_recurring && (
+            <>
+              <Text style={styles.label}>Recurrence Pattern</Text>
+              <View style={styles.radioGroup}>
+                {['daily', 'weekly', 'monthly'].map((pattern) => (
+                  <TouchableOpacity 
+                    key={pattern} 
+                    style={[
+                      styles.radioButton, 
+                      formData.recurrence_pattern === pattern && styles.radioButtonActive
+                    ]} 
+                    onPress={() => updateField('recurrence_pattern', pattern)}
+                  >
+                    <Text 
+                      style={[
+                        styles.radioText, 
+                        formData.recurrence_pattern === pattern && styles.radioTextActive
+                      ]}
+                    >
+                      {pattern.charAt(0).toUpperCase() + pattern.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              
+              <Text style={styles.label}>End Date (Optional)</Text>
+              <TouchableOpacity 
+                style={styles.dateButton} 
+                onPress={() => openDatePicker('recurrence_end_date')}
+              >
+                <Text style={styles.dateButtonText}>
+                  {formData.recurrence_end_date || 'Select End Date'}
+                </Text>
+                <Text style={styles.dateIcon}>🏁</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+
+        {/* Date Picker Modal */}
+        {showDatePicker && (
+          Platform.OS === 'ios' ? (
+            <Modal 
+              transparent={true} 
+              animationType="slide" 
+              visible={showDatePicker} 
+              onRequestClose={() => setShowDatePicker(false)}
+            >
+              <View style={styles.modalOverlay}>
+                <View style={styles.modalContent}>
+                  <View style={styles.modalHeader}>
+                    <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                      <Text style={styles.modalCancel}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={confirmIOSDate}>
+                      <Text style={styles.modalDone}>Done</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <DateTimePicker 
+                    value={tempDate} 
+                    mode="date" 
+                    display="spinner" 
+                    onChange={onDateChange} 
+                    textColor="black" 
+                  />
+                </View>
+              </View>
+            </Modal>
+          ) : (
+            <DateTimePicker 
+              value={tempDate} 
+              mode="date" 
+              display="default" 
+              onChange={onDateChange} 
+            />
+          )
+        )}
       </FormScrollView>
     </ScreenWrapper>
   );
@@ -393,34 +535,42 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
     paddingTop: 10,
-    paddingBottom: 16,
-    paddingHorizontal: 16,
+  },
+  headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    paddingHorizontal: 12,
+    paddingBottom: 16,
+    minHeight: 50,
   },
   cancelButton: {
     padding: 8,
+    minWidth: 50,
+    alignItems: 'flex-start',
   },
   cancelText: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#ef4444',
     fontWeight: '600',
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: 'bold',
     color: '#1e293b',
+    flex: 1,
+    textAlign: 'center',
+    marginHorizontal: 4,
   },
   saveButton: {
     backgroundColor: '#2563eb',
-    paddingHorizontal: 20,
+    paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 8,
-    minWidth: 70,
+    minWidth: 50,
     alignItems: 'center',
   },
   saveButtonDisabled: {
@@ -429,7 +579,7 @@ const styles = StyleSheet.create({
   saveText: {
     color: 'white',
     fontWeight: '600',
-    fontSize: 16,
+    fontSize: 15,
   },
   section: {
     backgroundColor: 'white',
@@ -532,5 +682,53 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#1e293b',
     fontWeight: '500',
+  },
+  dateButton: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  dateButtonText: {
+    fontSize: 15,
+    color: '#1e293b',
+  },
+  dateIcon: {
+    fontSize: 16,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    backgroundColor: '#f8fafc',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  modalCancel: {
+    fontSize: 16,
+    color: '#64748b',
+  },
+  modalDone: {
+    fontSize: 16,
+    color: '#2563eb',
+    fontWeight: '600',
   },
 });

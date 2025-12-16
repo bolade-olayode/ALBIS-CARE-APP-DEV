@@ -9,9 +9,13 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Platform,
+  Modal,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { ScreenWrapper, FormScrollView } from '../../components';
 import { clientApi } from '../../services/api/clientApi';
+import { formatDate, parseDate } from '../../utils/dateFormatter';
 
 interface AddClientScreenProps {
   navigation: any;
@@ -20,6 +24,11 @@ interface AddClientScreenProps {
 export default function AddClientScreen({ navigation }: AddClientScreenProps) {
   const [loading, setLoading] = useState(false);
   
+  // Date Picker State
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [activeDateField, setActiveDateField] = useState<string | null>(null);
+  const [tempDate, setTempDate] = useState(new Date());
+
   const [formData, setFormData] = useState({
     cTitle: 'Mr',
     cFName: '',
@@ -37,13 +46,52 @@ export default function AddClientScreen({ navigation }: AddClientScreenProps) {
     NHSNo: '',
     care_level: 'low',
     date_of_birth: '',
-    cSDate: '',
+    cSDate: formatDate(new Date().toISOString().split('T')[0]), // Default Start: Today
     cEDate: '',
     status: 'active',
   });
 
   const updateField = (field: string, value: string) => {
     setFormData({ ...formData, [field]: value });
+  };
+
+  // Open Picker for specific field
+  const openDatePicker = (field: string) => {
+    setActiveDateField(field);
+    
+    // Determine initial date for picker
+    let initialDate = new Date();
+    if (formData[field as keyof typeof formData]) {
+      initialDate = new Date(parseDate(formData[field as keyof typeof formData] as string));
+    } else if (field === 'date_of_birth') {
+      initialDate = new Date('1990-01-01'); // Default DOB to 1990
+    }
+
+    setTempDate(initialDate);
+    setShowDatePicker(true);
+  };
+
+  // Handle Date Change
+  const onDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+      if (selectedDate && activeDateField) {
+        const isoDate = selectedDate.toISOString().split('T')[0];
+        updateField(activeDateField, formatDate(isoDate));
+      }
+    } else {
+      // iOS: Just update temp state
+      if (selectedDate) setTempDate(selectedDate);
+    }
+  };
+
+  // iOS Done Button
+  const confirmIOSDate = () => {
+    if (activeDateField) {
+      const isoDate = tempDate.toISOString().split('T')[0];
+      updateField(activeDateField, formatDate(isoDate));
+    }
+    setShowDatePicker(false);
   };
 
   const handleSubmit = async () => {
@@ -60,7 +108,15 @@ export default function AddClientScreen({ navigation }: AddClientScreenProps) {
     setLoading(true);
 
     try {
-      const response = await clientApi.createClient(formData);
+      // Convert all dates back to SQL Format (YYYY-MM-DD)
+      const submitData = {
+        ...formData,
+        date_of_birth: parseDate(formData.date_of_birth),
+        cSDate: parseDate(formData.cSDate),
+        cEDate: parseDate(formData.cEDate),
+      };
+
+      const response = await clientApi.createClient(submitData);
 
       if (response.success) {
         Alert.alert(
@@ -95,7 +151,7 @@ export default function AddClientScreen({ navigation }: AddClientScreenProps) {
             <Text style={styles.cancelText}>Cancel</Text>
           </TouchableOpacity>
           
-          <Text style={styles.headerTitle} numberOfLines={1}>Add CareUser</Text>
+          <Text style={styles.headerTitle} numberOfLines={1}>Add Care User</Text>
           
           <TouchableOpacity
             style={[styles.saveButton, loading && styles.saveButtonDisabled]}
@@ -109,8 +165,7 @@ export default function AddClientScreen({ navigation }: AddClientScreenProps) {
             )}
           </TouchableOpacity>
         </View>
-      </View> 
-      {/* <-- FIXED: Added this missing closing tag */}
+      </View>
 
       <FormScrollView>
         {/* Personal Details */}
@@ -179,13 +234,17 @@ export default function AddClientScreen({ navigation }: AddClientScreenProps) {
             ))}
           </View>
 
+          {/* Date of Birth Picker */}
           <Text style={styles.label}>Date of Birth</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.date_of_birth}
-            onChangeText={(text) => updateField('date_of_birth', text)}
-            placeholder="YYYY-MM-DD (e.g., 1950-01-15)"
-          />
+          <TouchableOpacity 
+            style={styles.dateButton} 
+            onPress={() => openDatePicker('date_of_birth')}
+          >
+            <Text style={styles.dateButtonText}>
+              {formData.date_of_birth || 'Select DOB'}
+            </Text>
+            <Text style={styles.dateIcon}></Text>
+          </TouchableOpacity>
 
           <Text style={styles.label}>NHS Number</Text>
           <TextInput
@@ -302,21 +361,29 @@ export default function AddClientScreen({ navigation }: AddClientScreenProps) {
             ))}
           </View>
 
+          {/* Start Date Picker */}
           <Text style={styles.label}>Care Start Date</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.cSDate}
-            onChangeText={(text) => updateField('cSDate', text)}
-            placeholder="YYYY-MM-DD (e.g., 2024-01-15)"
-          />
+          <TouchableOpacity 
+            style={styles.dateButton} 
+            onPress={() => openDatePicker('cSDate')}
+          >
+            <Text style={styles.dateButtonText}>
+              {formData.cSDate || 'Select Start Date'}
+            </Text>
+            <Text style={styles.dateIcon}></Text>
+          </TouchableOpacity>
 
+          {/* End Date Picker */}
           <Text style={styles.label}>Care End Date (Optional)</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.cEDate}
-            onChangeText={(text) => updateField('cEDate', text)}
-            placeholder="YYYY-MM-DD (leave empty if ongoing)"
-          />
+          <TouchableOpacity 
+            style={styles.dateButton} 
+            onPress={() => openDatePicker('cEDate')}
+          >
+            <Text style={styles.dateButtonText}>
+              {formData.cEDate || 'Select End Date'}
+            </Text>
+            <Text style={styles.dateIcon}></Text>
+          </TouchableOpacity>
 
           <Text style={styles.label}>Care Plan</Text>
           <TextInput
@@ -338,6 +405,46 @@ export default function AddClientScreen({ navigation }: AddClientScreenProps) {
             numberOfLines={4}
           />
         </View>
+
+        {/* Common Picker Logic */}
+        {showDatePicker && (
+          Platform.OS === 'ios' ? (
+            <Modal
+              transparent={true}
+              animationType="slide"
+              visible={showDatePicker}
+              onRequestClose={() => setShowDatePicker(false)}
+            >
+              <View style={styles.modalOverlay}>
+                <View style={styles.modalContent}>
+                  <View style={styles.modalHeader}>
+                    <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                      <Text style={styles.modalCancel}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={confirmIOSDate}>
+                      <Text style={styles.modalDone}>Done</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <DateTimePicker
+                    value={tempDate}
+                    mode="date"
+                    display="spinner"
+                    onChange={onDateChange}
+                    textColor="black"
+                  />
+                </View>
+              </View>
+            </Modal>
+          ) : (
+            <DateTimePicker
+              value={tempDate}
+              mode="date"
+              display="default"
+              onChange={onDateChange}
+            />
+          )
+        )}
+
       </FormScrollView>
     </ScreenWrapper>
   );
@@ -477,5 +584,53 @@ const styles = StyleSheet.create({
   careLevelTextActive: {
     fontWeight: '600',
     color: '#1e293b',
+  },
+  dateButton: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  dateButtonText: {
+    fontSize: 15,
+    color: '#1e293b',
+  },
+  dateIcon: {
+    fontSize: 16,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    backgroundColor: '#f8fafc',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  modalCancel: {
+    fontSize: 16,
+    color: '#64748b',
+  },
+  modalDone: {
+    fontSize: 16,
+    color: '#2563eb',
+    fontWeight: '600',
   },
 });

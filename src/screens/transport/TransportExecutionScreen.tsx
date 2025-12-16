@@ -12,7 +12,6 @@ import {
   Alert,
 } from 'react-native';
 import { ScreenWrapper } from '../../components';
-import { transportApi } from '../../services/api/transportApi';
 
 interface TransportExecutionScreenProps {
   navigation: any;
@@ -23,7 +22,7 @@ export default function TransportExecutionScreen({
   navigation, 
   route 
 }: TransportExecutionScreenProps) {
-  const { transportId, userData } = route.params;
+  const { transportId } = route.params;
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -31,204 +30,71 @@ export default function TransportExecutionScreen({
   const [started, setStarted] = useState(false);
   const [startTime, setStartTime] = useState<Date | null>(null);
   const [pickupTime, setPickupTime] = useState<Date | null>(null);
-
-  // ✅ CHANGED: Get driver ID from userData passed via route params
-  const driverId = userData?.staff?.staff_id || userData?.user?.id || 0;
-
-  // Transport Form Data
-  const [formData, setFormData] = useState({
-    start_mileage: '',
-    end_mileage: '',
-    actual_pickup_time: '',
-    actual_dropoff_time: '',
-    distance_miles: '',
-    duration_minutes: '',
-    client_condition: '',
-    notes: '',
-  });
+  const [formData, setFormData] = useState({ start_mileage: '', end_mileage: '', notes: '' });
 
   useEffect(() => {
-    loadTransportDetails();
+    loadData();
   }, []);
 
-  const loadTransportDetails = async () => {
+  const loadData = async () => {
     try {
       setLoading(true);
-      
-      // ✅ CHANGED: Use driverId from userData
-      const response = await transportApi.getTransports({
-        driver_id: driverId,
-      });
+      const res = await fetch(`https://albiscare.co.uk/api/v1/transport/get.php?id=${transportId}`);
+      const json = await res.json();
 
-      if (response.success) {
-        const transports = response.data?.transports || [];
-        const foundTransport = transports.find(
-          (t: any) => t.transport_id === transportId
-        );
-
-        if (foundTransport) {
-          setTransport(foundTransport);
-          
-          // If transport is already in progress, set started
-          if (foundTransport.status === 'in_progress') {
-            setStarted(true);
-            setStartTime(new Date());
-            if (foundTransport.actual_pickup_time) {
-              setPickupTime(new Date(foundTransport.actual_pickup_time));
-            }
-            setFormData(prev => ({
-              ...prev,
-              start_mileage: foundTransport.start_mileage?.toString() || '',
-            }));
+      if (json.success && json.data?.transport) {
+        const t = json.data.transport;
+        setTransport(t);
+        if (t.status === 'in_progress') {
+          setStarted(true);
+          if (t.actual_pickup_time) {
+            setStartTime(new Date(t.actual_pickup_time));
+            setPickupTime(new Date(t.actual_pickup_time));
           }
-        } else {
-          Alert.alert('Error', 'Transport not found');
+          setFormData(prev => ({ ...prev, start_mileage: t.start_mileage || '' }));
         }
       } else {
-        Alert.alert('Error', response.message || 'Failed to load transport details');
+        Alert.alert('Error', 'Transport job not found');
+        navigation.goBack();
       }
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Something went wrong');
+    } catch (e) {
+      Alert.alert('Error', 'Network Error');
     } finally {
       setLoading(false);
     }
   };
 
-  const updateField = (field: string, value: any) => {
-    setFormData({ ...formData, [field]: value });
-  };
-
-  const handleStartTransport = () => {
-    if (!formData.start_mileage) {
-      Alert.alert('Required', 'Please enter starting mileage');
-      return;
-    }
-
-    Alert.alert(
-      'Start Transport',
-      `Start transport for ${transport.client_name}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Start',
-          onPress: async () => {
-            try {
-              const now = new Date();
-              const response = await transportApi.updateTransport(transportId, {
-                status: 'in_progress',
-                start_mileage: parseInt(formData.start_mileage),
-                actual_pickup_time: now.toISOString(),
-              });
-
-              if (response.success) {
-                setStarted(true);
-                setStartTime(now);
-                Alert.alert('Success', 'Transport started!');
-              } else {
-                Alert.alert('Error', response.message || 'Failed to start transport');
-              }
-            } catch (error: any) {
-              Alert.alert('Error', error.message || 'Something went wrong');
-            }
-          },
-        },
-      ]
-    );
+  const handleStart = async () => {
+    if (!formData.start_mileage) return Alert.alert('Error', 'Enter start mileage');
+    try {
+      const now = new Date();
+      await fetch(`https://albiscare.co.uk/api/v1/transport/update.php?id=${transportId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'in_progress', start_mileage: parseInt(formData.start_mileage), actual_pickup_time: now.toISOString() })
+      });
+      setStarted(true);
+      setStartTime(now);
+    } catch (e) { Alert.alert('Error', 'Failed to start'); }
   };
 
   const handleRecordPickup = () => {
-    Alert.alert(
-      'Record Pickup',
-      `Confirm ${transport.client_name} has been picked up?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Confirm',
-          onPress: () => {
-            const now = new Date();
-            setPickupTime(now);
-            updateField('actual_pickup_time', now.toISOString());
-            Alert.alert('Success', 'Pickup time recorded!');
-          },
-        },
-      ]
-    );
+    const now = new Date();
+    setPickupTime(now);
+    Alert.alert('Success', 'Passenger pickup confirmed!');
   };
 
-  const handleCompleteTransport = () => {
-    // Validation
-    if (!formData.end_mileage) {
-      Alert.alert('Required', 'Please enter ending mileage');
-      return;
-    }
-
-    if (!pickupTime) {
-      Alert.alert('Required', 'Please record pickup time first');
-      return;
-    }
-
-    const startMiles = parseInt(formData.start_mileage);
-    const endMiles = parseInt(formData.end_mileage);
-
-    if (endMiles < startMiles) {
-      Alert.alert('Invalid', 'End mileage cannot be less than start mileage');
-      return;
-    }
-
-    Alert.alert(
-      'Complete Transport',
-      'Mark this transport as completed?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Complete',
-          onPress: async () => {
-            setSaving(true);
-
-            try {
-              const now = new Date();
-              const distance = endMiles - startMiles;
-              
-              // Calculate duration in minutes
-              const durationMinutes = startTime
-                ? Math.round((now.getTime() - startTime.getTime()) / 60000)
-                : 0;
-
-              const updateData = {
-                status: 'completed',
-                end_mileage: endMiles,
-                actual_dropoff_time: now.toISOString(),
-                distance_miles: distance,
-                duration_minutes: durationMinutes,
-                client_condition: formData.client_condition,
-                notes: formData.notes,
-              };
-
-              const response = await transportApi.updateTransport(transportId, updateData);
-
-              if (response.success) {
-                Alert.alert(
-                  'Success',
-                  'Transport completed successfully!',
-                  [
-                    {
-                      text: 'OK',
-                      onPress: () => navigation.navigate('Dashboard'),
-                    },
-                  ]
-                );
-              } else {
-                Alert.alert('Error', response.message || 'Failed to complete transport');
-              }
-            } catch (error: any) {
-              Alert.alert('Error', error.message || 'Something went wrong');
-            } finally {
-              setSaving(false);
-            }
-          },
-        },
-      ]
-    );
+  const handleComplete = async () => {
+    if (!formData.end_mileage) return Alert.alert('Error', 'Enter end mileage');
+    try {
+      setSaving(true);
+      await fetch(`https://albiscare.co.uk/api/v1/transport/update.php?id=${transportId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'completed', end_mileage: parseInt(formData.end_mileage), actual_dropoff_time: new Date().toISOString(), notes: formData.notes })
+      });
+      navigation.goBack();
+    } catch (e) { Alert.alert('Error', 'Failed to complete'); } finally { setSaving(false); }
   };
 
   const formatTime = (time: string) => {
@@ -240,499 +106,237 @@ export default function TransportExecutionScreen({
     return `${displayHour}:${minutes} ${ampm}`;
   };
 
-  if (loading) {
-    return (
-      <ScreenWrapper>
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#f59e0b" />
-          <Text style={styles.loadingText}>Loading transport...</Text>
-        </View>
-      </ScreenWrapper>
-    );
-  }
-
-  if (!transport) {
-    return (
-      <ScreenWrapper>
-        <View style={styles.centerContainer}>
-          <Text style={styles.errorText}>Transport not found</Text>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Text style={styles.backButtonText}>← Go Back</Text>
-          </TouchableOpacity>
-        </View>
-      </ScreenWrapper>
-    );
-  }
+  if (loading) return <ScreenWrapper><ActivityIndicator size="large" color="#f59e0b" style={{marginTop:50}} /></ScreenWrapper>;
+  if (!transport) return null;
 
   return (
     <ScreenWrapper>
-      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.headerBackButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Text style={styles.headerBackText}>← Back</Text>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <Text style={styles.backTxt}>← Back</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Transport Execution</Text>
+        <Text style={styles.title}>Transport Job</Text>
         <View style={{ width: 60 }} />
       </View>
 
-      <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 40 }}>
-        {/* Transport Info Card */}
-        <View style={styles.transportInfoCard}>
-          <Text style={styles.clientNameLarge}>{transport.client_name}</Text>
+      <ScrollView style={styles.content} contentContainerStyle={{paddingBottom: 40}}>
+        {/* Info Card */}
+        <View style={styles.card}>
+          <View style={{ marginBottom: 16 }}>
+            <Text style={styles.label}>PASSENGER (CARER)</Text>
+            <Text style={styles.passenger}>{transport.passenger_name || 'Staff Member'}</Text>
+            {transport.passenger_phone && <Text style={styles.phoneText}>📞 {transport.passenger_phone}</Text>}
+          </View>
           
-          <View style={styles.infoGrid}>
-            <View style={styles.infoItem}>
-              <Text style={styles.infoLabel}>📅 Date</Text>
-              <Text style={styles.infoValue}>{transport.transport_date}</Text>
+          <View style={{ marginBottom: 16 }}>
+            <Text style={styles.label}>DESTINATION CLIENT</Text>
+            <Text style={styles.client}>{transport.client_name}</Text>
+          </View>
+
+          <View style={styles.row}>
+            <View style={styles.col}>
+              <Text style={styles.subLabel}>DATE</Text>
+              <Text style={styles.val}>{transport.transport_date}</Text>
             </View>
-            <View style={styles.infoItem}>
-              <Text style={styles.infoLabel}>🕐 Pickup Time</Text>
-              <Text style={styles.infoValue}>{formatTime(transport.pickup_time)}</Text>
+            <View style={styles.col}>
+              <Text style={styles.subLabel}>TIME</Text>
+              <Text style={styles.val}>{formatTime(transport.pickup_time)}</Text>
             </View>
           </View>
 
-          <View style={styles.locationCard}>
-            <View style={styles.locationRow}>
-              <Text style={styles.locationIcon}>📍</Text>
-              <View style={styles.locationInfo}>
-                <Text style={styles.locationLabel}>PICKUP</Text>
-                <Text style={styles.locationText}>
-                  {transport.pickup_location || `${transport.cAddr1}, ${transport.cTown}`}
-                </Text>
-              </View>
-            </View>
-            
-            <View style={styles.locationDivider}>
-              <Text style={styles.locationArrow}>↓</Text>
-            </View>
-            
-            <View style={styles.locationRow}>
-              <Text style={styles.locationIcon}>🎯</Text>
-              <View style={styles.locationInfo}>
-                <Text style={styles.locationLabel}>DROP-OFF</Text>
-                <Text style={styles.locationText}>
-                  {transport.dropoff_location || 'To be confirmed'}
-                </Text>
-              </View>
-            </View>
+          <View style={styles.routeBox}>
+            <Text style={styles.label}>PICKUP</Text>
+            <Text style={styles.addr}>{transport.pickup_location || 'Office / Home'}</Text>
+            <Text style={styles.arrow}>⬇</Text>
+            <Text style={styles.label}>DROPOFF</Text>
+            <Text style={styles.addr}>{transport.dropoff_location || 'Client Address'}</Text>
           </View>
-
-          {transport.purpose && (
-            <View style={styles.purposeBox}>
-              <Text style={styles.purposeTitle}>📋 Purpose</Text>
-              <Text style={styles.purposeText}>{transport.purpose}</Text>
-            </View>
-          )}
-
-          {transport.special_requirements && (
-            <View style={styles.requirementsBox}>
-              <Text style={styles.requirementsTitle}>⚠️ Special Requirements</Text>
-              <Text style={styles.requirementsText}>{transport.special_requirements}</Text>
-            </View>
-          )}
-
-          {/* Client Contact */}
-          {transport.cTel && (
-            <View style={styles.contactBox}>
-              <Text style={styles.contactLabel}>📞 Client Phone:</Text>
-              <Text style={styles.contactValue}>{transport.cTel}</Text>
-            </View>
-          )}
         </View>
 
-        {/* Start Transport Section */}
+        {/* Action Area */}
         {!started ? (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>🚗 Start Transport</Text>
-            
-            <Text style={styles.label}>Starting Mileage *</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.start_mileage}
-              onChangeText={(text) => updateField('start_mileage', text)}
-              placeholder="Enter current odometer reading"
-              keyboardType="numeric"
+            <Text style={styles.secTitle}>Start Transport</Text>
+            <TextInput 
+              style={styles.input} 
+              placeholder="Start Mileage" 
+              keyboardType="numeric" 
+              value={formData.start_mileage} 
+              onChangeText={t => setFormData({ ...formData, start_mileage: t })} 
             />
-
-            <TouchableOpacity
-              style={styles.startButton}
-              onPress={handleStartTransport}
-            >
-              <Text style={styles.startButtonIcon}>▶️</Text>
-              <Text style={styles.startButtonText}>Start Transport</Text>
+            <TouchableOpacity style={styles.btnStart} onPress={handleStart}>
+              <Text style={styles.btnTxt}>Start Journey</Text>
             </TouchableOpacity>
-            <Text style={styles.buttonHint}>
-              This will record the start time and begin tracking
-            </Text>
           </View>
         ) : (
-          <>
-            {/* In Progress */}
-            <View style={styles.progressCard}>
-              <Text style={styles.progressLabel}>🚗 Transport In Progress</Text>
-              <Text style={styles.progressTime}>
-                Started at {startTime?.toLocaleTimeString('en-GB', { 
-                  hour: '2-digit', 
-                  minute: '2-digit' 
-                })}
-              </Text>
-              <Text style={styles.progressMileage}>
-                Start: {formData.start_mileage} miles
+          <View style={styles.section}>
+            <View style={styles.progressBox}>
+              <Text style={styles.progTxt}>
+                🚀 In Progress... Started at {startTime?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </Text>
             </View>
 
-            {/* Pickup Confirmation */}
             {!pickupTime ? (
               <View style={styles.section}>
-                <TouchableOpacity
-                  style={styles.pickupButton}
-                  onPress={handleRecordPickup}
-                >
+                <TouchableOpacity style={styles.pickupButton} onPress={handleRecordPickup}>
                   <Text style={styles.pickupButtonIcon}>✓</Text>
-                  <Text style={styles.pickupButtonText}>Record Pickup Time</Text>
+                  <Text style={styles.pickupButtonText}>Passenger Picked Up</Text>
                 </TouchableOpacity>
-                <Text style={styles.buttonHint}>
-                  Tap when client has been picked up
-                </Text>
+                <Text style={styles.buttonHint}>Tap when Passenger is onboard</Text>
               </View>
             ) : (
-              <View style={styles.pickupConfirmed}>
-                <Text style={styles.pickupConfirmedIcon}>✓</Text>
-                <View>
-                  <Text style={styles.pickupConfirmedLabel}>Pickup Recorded</Text>
-                  <Text style={styles.pickupConfirmedTime}>
-                    {pickupTime?.toLocaleTimeString('en-GB', { 
-                      hour: '2-digit', 
-                      minute: '2-digit' 
-                    })}
-                  </Text>
-                </View>
-              </View>
-            )}
-
-            {/* Complete Transport Form */}
-            {pickupTime && (
               <>
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>📝 Complete Transport</Text>
-
-                  <Text style={styles.label}>Ending Mileage *</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={formData.end_mileage}
-                    onChangeText={(text) => updateField('end_mileage', text)}
-                    placeholder="Enter current odometer reading"
-                    keyboardType="numeric"
-                  />
-
-                  {formData.start_mileage && formData.end_mileage && (
-                    <View style={styles.distanceBox}>
-                      <Text style={styles.distanceText}>
-                        📏 Distance: {
-                          parseInt(formData.end_mileage) - parseInt(formData.start_mileage)
-                        } miles
-                      </Text>
-                    </View>
-                  )}
-
-                  <Text style={styles.label}>Client Condition</Text>
-                  <TextInput
-                    style={[styles.input, styles.textArea]}
-                    value={formData.client_condition}
-                    onChangeText={(text) => updateField('client_condition', text)}
-                    placeholder="How was the client during transport? Any issues or observations?"
-                    multiline
-                    numberOfLines={4}
-                  />
-
-                  <Text style={styles.label}>Additional Notes</Text>
-                  <TextInput
-                    style={[styles.input, styles.textArea]}
-                    value={formData.notes}
-                    onChangeText={(text) => updateField('notes', text)}
-                    placeholder="Traffic conditions, route taken, or any other relevant information"
-                    multiline
-                    numberOfLines={4}
-                  />
-                </View>
-
-                {/* Complete Button */}
-                <View style={styles.section}>
-                  <TouchableOpacity
-                    style={[styles.completeButton, saving && styles.completeButtonDisabled]}
-                    onPress={handleCompleteTransport}
-                    disabled={saving}
-                  >
-                    {saving ? (
-                      <ActivityIndicator color="white" size="small" />
-                    ) : (
-                      <>
-                        <Text style={styles.completeButtonIcon}>✓</Text>
-                        <Text style={styles.completeButtonText}>Complete Transport</Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
-                  <Text style={styles.buttonHint}>
-                    This will mark the transport as completed and save all details
-                  </Text>
-                </View>
+                <Text style={styles.secTitle}>Complete Transport</Text>
+                <TextInput 
+                  style={styles.input} 
+                  placeholder="End Mileage" 
+                  keyboardType="numeric" 
+                  value={formData.end_mileage} 
+                  onChangeText={t => setFormData({ ...formData, end_mileage: t })} 
+                />
+                <TextInput 
+                  style={[styles.input, { height: 80, textAlignVertical: 'top' }]} 
+                  placeholder="Notes..." 
+                  multiline 
+                  value={formData.notes} 
+                  onChangeText={t => setFormData({ ...formData, notes: t })} 
+                />
+                <TouchableOpacity style={styles.btnComplete} onPress={handleComplete} disabled={saving}>
+                  <Text style={styles.btnTxt}>Complete & Arrived</Text>
+                </TouchableOpacity>
               </>
             )}
-          </>
+          </View>
         )}
       </ScrollView>
     </ScreenWrapper>
   );
 }
 
-// Keep all styles exactly as they were in the original file...
 const styles = StyleSheet.create({
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: '#64748b',
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#ef4444',
-    marginBottom: 20,
-  },
-  backButton: {
-    backgroundColor: '#f59e0b',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  backButtonText: {
-    color: 'white',
-    fontWeight: '600',
-    fontSize: 16,
-  },
+  // --- HEADER ---
   header: {
-    backgroundColor: 'white',
-    paddingTop: 10,
-    paddingBottom: 16,
-    paddingHorizontal: 16,
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: 'white',
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    borderColor: '#eee',
   },
-  headerBackButton: {
+  backBtn: {
     padding: 8,
   },
-  headerBackText: {
-    fontSize: 16,
+  backTxt: {
     color: '#f59e0b',
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
-  headerTitle: {
+  title: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#1e293b',
+    color: '#333',
   },
+
+  // --- LAYOUT ---
   content: {
-    flex: 1,
+    padding: 16,
   },
-  transportInfoCard: {
+  section: {
+    marginBottom: 30,
+  },
+  secTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 12,
+    color: '#333',
+  },
+
+  // --- CARDS ---
+  card: {
     backgroundColor: 'white',
-    marginHorizontal: 16,
-    marginTop: 16,
     padding: 16,
     borderRadius: 12,
+    marginBottom: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
     elevation: 2,
   },
-  clientNameLarge: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#1e293b',
-    marginBottom: 16,
-  },
-  infoGrid: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16,
-  },
-  infoItem: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-    padding: 12,
-    borderRadius: 8,
-  },
-  infoLabel: {
+  label: {
     fontSize: 11,
-    color: '#64748b',
+    color: '#888',
+    fontWeight: 'bold',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+  },
+  passenger: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#000',
     marginBottom: 4,
   },
-  infoValue: {
+  phoneText: {
+    color: '#64748b',
     fontSize: 14,
-    fontWeight: '600',
-    color: '#1e293b',
   },
-  locationCard: {
-    backgroundColor: '#f8fafc',
-    padding: 16,
-    borderRadius: 8,
+  client: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
     marginBottom: 16,
   },
-  locationRow: {
+  row: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    gap: 16,
+    marginBottom: 16,
   },
-  locationIcon: {
-    fontSize: 24,
-    marginRight: 12,
+  col: {
+    flex: 1,
+    backgroundColor: '#f9f9f9',
+    padding: 10,
+    borderRadius: 8,
+  },
+  subLabel: {
+    fontSize: 10,
+    color: '#888',
+    fontWeight: '600',
+  },
+  val: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
     marginTop: 2,
   },
-  locationInfo: {
-    flex: 1,
+  routeBox: {
+    backgroundColor: '#f9f9f9',
+    padding: 12,
+    borderRadius: 8,
   },
-  locationLabel: {
-    fontSize: 10,
-    color: '#64748b',
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 4,
-  },
-  locationText: {
+  addr: {
     fontSize: 15,
-    color: '#1e293b',
+    color: '#333',
+    marginBottom: 4,
     fontWeight: '500',
-    lineHeight: 22,
   },
-  locationDivider: {
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  locationArrow: {
-    fontSize: 20,
-    color: '#94a3b8',
-  },
-  purposeBox: {
-    backgroundColor: '#eff6ff',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: '#3b82f6',
-  },
-  purposeTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#1e40af',
-    marginBottom: 4,
-  },
-  purposeText: {
-    fontSize: 14,
-    color: '#1e40af',
-    lineHeight: 20,
-  },
-  requirementsBox: {
-    backgroundColor: '#fef3c7',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: '#f59e0b',
-  },
-  requirementsTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#92400e',
-    marginBottom: 4,
-  },
-  requirementsText: {
-    fontSize: 14,
-    color: '#92400e',
-    lineHeight: 20,
-  },
-  contactBox: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
-  },
-  contactLabel: {
-    fontSize: 14,
-    color: '#64748b',
-  },
-  contactValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1e293b',
-  },
-  section: {
-    marginHorizontal: 16,
-    marginTop: 16,
-  },
-  sectionTitle: {
+  arrow: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#1e293b',
-    marginBottom: 16,
+    color: '#ccc',
+    marginVertical: 4,
+    marginLeft: 4,
   },
-  label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#475569',
-    marginBottom: 8,
-    marginTop: 12,
-  },
+
+  // --- INPUTS ---
   input: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: 'white',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#ddd',
     borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: '#1e293b',
-  },
-  textArea: {
-    height: 100,
-    textAlignVertical: 'top',
-  },
-  startButton: {
-    backgroundColor: '#10b981',
-    paddingVertical: 18,
-    borderRadius: 12,
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  startButtonIcon: {
-    fontSize: 24,
-    marginRight: 12,
-  },
-  startButtonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
+    padding: 14,
+    fontSize: 16,
+    marginBottom: 12,
+    color: '#333',
   },
   buttonHint: {
     fontSize: 13,
@@ -740,116 +344,62 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 12,
   },
-  progressCard: {
+
+  // --- BUTTONS ---
+  btnStart: {
     backgroundColor: '#10b981',
-    marginHorizontal: 16,
-    marginTop: 16,
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 8,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
   },
-  progressLabel: {
-    fontSize: 16,
+  startButtonIcon: {
+    fontSize: 20,
+    marginRight: 8,
     color: 'white',
-    fontWeight: '600',
-    marginBottom: 6,
   },
-  progressTime: {
-    fontSize: 14,
-    color: 'white',
-    opacity: 0.9,
-    marginBottom: 4,
-  },
-  progressMileage: {
-    fontSize: 14,
-    color: 'white',
-    opacity: 0.9,
+  btnComplete: {
+    backgroundColor: '#f59e0b',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
   },
   pickupButton: {
     backgroundColor: '#3b82f6',
-    paddingVertical: 18,
-    borderRadius: 12,
+    padding: 16,
+    borderRadius: 8,
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
   pickupButtonIcon: {
-    fontSize: 24,
+    fontSize: 20,
+    marginRight: 8,
     color: 'white',
-    marginRight: 12,
   },
   pickupButtonText: {
     color: 'white',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
   },
-  pickupConfirmed: {
+  btnTxt: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+
+  // --- PROGRESS ---
+  progressBox: {
     backgroundColor: '#d1fae5',
-    marginHorizontal: 16,
-    marginTop: 16,
     padding: 16,
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#10b981',
-  },
-  pickupConfirmedIcon: {
-    fontSize: 32,
-    color: '#10b981',
-    marginRight: 16,
-  },
-  pickupConfirmedLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#065f46',
-  },
-  pickupConfirmedTime: {
-    fontSize: 14,
-    color: '#047857',
-    marginTop: 2,
-  },
-  distanceBox: {
-    backgroundColor: '#eff6ff',
-    padding: 12,
     borderRadius: 8,
-    marginTop: 8,
+    marginBottom: 20,
     alignItems: 'center',
   },
-  distanceText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1e40af',
-  },
-  completeButton: {
-    backgroundColor: '#f59e0b',
-    paddingVertical: 18,
-    borderRadius: 12,
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  completeButtonDisabled: {
-    opacity: 0.6,
-  },
-  completeButtonIcon: {
-    fontSize: 24,
-    color: 'white',
-    marginRight: 12,
-  },
-  completeButtonText: {
-    color: 'white',
-    fontSize: 18,
+  progTxt: {
+    color: '#065f46',
     fontWeight: 'bold',
+    fontSize: 14,
   },
 });

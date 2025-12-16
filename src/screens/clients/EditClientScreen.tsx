@@ -9,9 +9,13 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Platform,
+  Modal,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { ScreenWrapper, FormScrollView } from '../../components';
 import { clientApi } from '../../services/api/clientApi';
+import { formatDate, parseDate } from '../../utils/dateFormatter';
 
 interface EditClientScreenProps {
   route: any;
@@ -23,6 +27,11 @@ export default function EditClientScreen({ route, navigation }: EditClientScreen
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
+  // Date Picker State
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [activeDateField, setActiveDateField] = useState<string | null>(null);
+  const [tempDate, setTempDate] = useState(new Date());
+
   const [formData, setFormData] = useState({
     cTitle: 'Mr',
     cFName: '',
@@ -73,9 +82,10 @@ export default function EditClientScreen({ route, navigation }: EditClientScreen
           cRemarks: clientData.cRemarks || '',
           NHSNo: clientData.NHSNo || '',
           care_level: clientData.care_level || 'low',
-          date_of_birth: clientData.date_of_birth || '',
-          cSDate: clientData.cSDate || '',
-          cEDate: clientData.cEDate || '',
+          // CONVERT DB DATES TO UI FORMAT
+          date_of_birth: formatDate(clientData.date_of_birth),
+          cSDate: formatDate(clientData.cSDate),
+          cEDate: formatDate(clientData.cEDate),
           status: clientData.status || 'active',
         });
       } else {
@@ -94,6 +104,45 @@ export default function EditClientScreen({ route, navigation }: EditClientScreen
     setFormData({ ...formData, [field]: value });
   };
 
+  // Open Picker
+  const openDatePicker = (field: string) => {
+    setActiveDateField(field);
+    
+    let initialDate = new Date();
+    // Try to parse existing date, else default
+    if (formData[field as keyof typeof formData]) {
+      // We must parse the UI date (DD-MM-YYYY) back to a Date object
+      initialDate = new Date(parseDate(formData[field as keyof typeof formData] as string));
+    } else if (field === 'date_of_birth') {
+      initialDate = new Date('1990-01-01');
+    }
+
+    setTempDate(initialDate);
+    setShowDatePicker(true);
+  };
+
+  // Handle Change
+  const onDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+      if (selectedDate && activeDateField) {
+        const isoDate = selectedDate.toISOString().split('T')[0];
+        updateField(activeDateField, formatDate(isoDate));
+      }
+    } else {
+      if (selectedDate) setTempDate(selectedDate);
+    }
+  };
+
+  // iOS Confirm
+  const confirmIOSDate = () => {
+    if (activeDateField) {
+      const isoDate = tempDate.toISOString().split('T')[0];
+      updateField(activeDateField, formatDate(isoDate));
+    }
+    setShowDatePicker(false);
+  };
+
   const handleSubmit = async () => {
     if (!formData.cFName || !formData.cLName) {
       Alert.alert('Validation Error', 'First name and last name are required');
@@ -108,7 +157,15 @@ export default function EditClientScreen({ route, navigation }: EditClientScreen
     setSaving(true);
 
     try {
-      const response = await clientApi.updateClient(clientId, formData);
+      // CONVERT UI DATES BACK TO DB FORMAT (YYYY-MM-DD)
+      const submitData = {
+        ...formData,
+        date_of_birth: parseDate(formData.date_of_birth),
+        cSDate: parseDate(formData.cSDate),
+        cEDate: parseDate(formData.cEDate),
+      };
+
+      const response = await clientApi.updateClient(clientId, submitData);
 
       if (response.success) {
         Alert.alert(
@@ -146,24 +203,26 @@ export default function EditClientScreen({ route, navigation }: EditClientScreen
     <ScreenWrapper>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.cancelButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Text style={styles.cancelText}>Cancel</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Edit Client</Text>
-        <TouchableOpacity
-          style={[styles.saveButton, saving && styles.saveButtonDisabled]}
-          onPress={handleSubmit}
-          disabled={saving}
-        >
-          {saving ? (
-            <ActivityIndicator color="white" size="small" />
-          ) : (
-            <Text style={styles.saveText}>Save</Text>
-          )}
-        </TouchableOpacity>
+        <View style={styles.headerContent}>
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.cancelText}>Cancel</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle} numberOfLines={1}>Edit Client</Text>
+          <TouchableOpacity
+            style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+            onPress={handleSubmit}
+            disabled={saving}
+          >
+            {saving ? (
+              <ActivityIndicator color="white" size="small" />
+            ) : (
+              <Text style={styles.saveText}>Save</Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       <FormScrollView>
@@ -199,7 +258,6 @@ export default function EditClientScreen({ route, navigation }: EditClientScreen
             style={styles.input}
             value={formData.cFName}
             onChangeText={(text) => updateField('cFName', text)}
-            placeholder="Enter first name"
           />
 
           <Text style={styles.label}>Last Name *</Text>
@@ -207,7 +265,6 @@ export default function EditClientScreen({ route, navigation }: EditClientScreen
             style={styles.input}
             value={formData.cLName}
             onChangeText={(text) => updateField('cLName', text)}
-            placeholder="Enter last name"
           />
 
           <Text style={styles.label}>Gender</Text>
@@ -234,50 +291,46 @@ export default function EditClientScreen({ route, navigation }: EditClientScreen
           </View>
 
           <Text style={styles.label}>Date of Birth</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.date_of_birth}
-            onChangeText={(text) => updateField('date_of_birth', text)}
-            placeholder="YYYY-MM-DD (e.g., 1950-01-15)"
-          />
+          <TouchableOpacity 
+            style={styles.dateButton} 
+            onPress={() => openDatePicker('date_of_birth')}
+          >
+            <Text style={styles.dateButtonText}>
+              {formData.date_of_birth || 'Select DOB'}
+            </Text>
+            <Text style={styles.dateIcon}></Text>
+          </TouchableOpacity>
 
           <Text style={styles.label}>NHS Number</Text>
           <TextInput
             style={styles.input}
             value={formData.NHSNo}
             onChangeText={(text) => updateField('NHSNo', text)}
-            placeholder="Enter NHS number"
           />
         </View>
 
-        {/* Contact Information */}
+        {/* Contact Info */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Contact Information</Text>
-
           <Text style={styles.label}>Phone *</Text>
           <TextInput
             style={styles.input}
             value={formData.cTel}
             onChangeText={(text) => updateField('cTel', text)}
-            placeholder="01234567890"
             keyboardType="phone-pad"
           />
-
           <Text style={styles.label}>Mobile</Text>
           <TextInput
             style={styles.input}
             value={formData.cMobile}
             onChangeText={(text) => updateField('cMobile', text)}
-            placeholder="07700900123"
             keyboardType="phone-pad"
           />
-
           <Text style={styles.label}>Email</Text>
           <TextInput
             style={styles.input}
             value={formData.cEmail}
             onChangeText={(text) => updateField('cEmail', text)}
-            placeholder="example@email.com"
             keyboardType="email-address"
             autoCapitalize="none"
           />
@@ -286,37 +339,29 @@ export default function EditClientScreen({ route, navigation }: EditClientScreen
         {/* Address */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Address</Text>
-
           <Text style={styles.label}>Address Line 1 *</Text>
           <TextInput
             style={styles.input}
             value={formData.cAddr1}
             onChangeText={(text) => updateField('cAddr1', text)}
-            placeholder="123 High Street"
           />
-
           <Text style={styles.label}>Address Line 2</Text>
           <TextInput
             style={styles.input}
             value={formData.cAddr2}
             onChangeText={(text) => updateField('cAddr2', text)}
-            placeholder="Flat 4"
           />
-
           <Text style={styles.label}>Town</Text>
           <TextInput
             style={styles.input}
             value={formData.cTown}
             onChangeText={(text) => updateField('cTown', text)}
-            placeholder="London"
           />
-
           <Text style={styles.label}>Postcode *</Text>
           <TextInput
             style={styles.input}
             value={formData.cPostCode}
             onChangeText={(text) => updateField('cPostCode', text.toUpperCase())}
-            placeholder="SW1A 1AA"
             autoCapitalize="characters"
           />
         </View>
@@ -357,41 +402,85 @@ export default function EditClientScreen({ route, navigation }: EditClientScreen
           </View>
 
           <Text style={styles.label}>Care Start Date</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.cSDate}
-            onChangeText={(text) => updateField('cSDate', text)}
-            placeholder="YYYY-MM-DD (e.g., 2024-01-15)"
-          />
+          <TouchableOpacity 
+            style={styles.dateButton} 
+            onPress={() => openDatePicker('cSDate')}
+          >
+            <Text style={styles.dateButtonText}>
+              {formData.cSDate || 'Select Start Date'}
+            </Text>
+            <Text style={styles.dateIcon}></Text>
+          </TouchableOpacity>
 
-          <Text style={styles.label}>Care End Date (Optional)</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.cEDate}
-            onChangeText={(text) => updateField('cEDate', text)}
-            placeholder="YYYY-MM-DD (leave empty if ongoing)"
-          />
+          <Text style={styles.label}>Care End Date</Text>
+          <TouchableOpacity 
+            style={styles.dateButton} 
+            onPress={() => openDatePicker('cEDate')}
+          >
+            <Text style={styles.dateButtonText}>
+              {formData.cEDate || 'Select End Date'}
+            </Text>
+            <Text style={styles.dateIcon}></Text>
+          </TouchableOpacity>
 
           <Text style={styles.label}>Care Plan</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
             value={formData.cCarePlan}
             onChangeText={(text) => updateField('cCarePlan', text)}
-            placeholder="Describe the care plan..."
             multiline
             numberOfLines={4}
           />
 
-          <Text style={styles.label}>Medical Notes & Remarks</Text>
+          <Text style={styles.label}>Medical Notes</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
             value={formData.cRemarks}
             onChangeText={(text) => updateField('cRemarks', text)}
-            placeholder="Any medical conditions, allergies, or special notes..."
             multiline
             numberOfLines={4}
           />
         </View>
+
+        {/* Date Picker Modal (Platform Specific) */}
+        {showDatePicker && (
+          Platform.OS === 'ios' ? (
+            <Modal
+              transparent={true}
+              animationType="slide"
+              visible={showDatePicker}
+              onRequestClose={() => setShowDatePicker(false)}
+            >
+              <View style={styles.modalOverlay}>
+                <View style={styles.modalContent}>
+                  <View style={styles.modalHeader}>
+                    <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                      <Text style={styles.modalCancel}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={confirmIOSDate}>
+                      <Text style={styles.modalDone}>Done</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <DateTimePicker
+                    value={tempDate}
+                    mode="date"
+                    display="spinner"
+                    onChange={onDateChange}
+                    textColor="black"
+                  />
+                </View>
+              </View>
+            </Modal>
+          ) : (
+            <DateTimePicker
+              value={tempDate}
+              mode="date"
+              display="default"
+              onChange={onDateChange}
+            />
+          )
+        )}
+
       </FormScrollView>
     </ScreenWrapper>
   );
@@ -410,34 +499,42 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
     paddingTop: 10,
-    paddingBottom: 16,
-    paddingHorizontal: 16,
+  },
+  headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    paddingHorizontal: 12,
+    paddingBottom: 16,
+    minHeight: 50,
   },
   cancelButton: {
     padding: 8,
+    minWidth: 50,
+    alignItems: 'flex-start',
   },
   cancelText: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#ef4444',
     fontWeight: '600',
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: 'bold',
     color: '#1e293b',
+    flex: 1,
+    textAlign: 'center',
+    marginHorizontal: 4,
   },
   saveButton: {
     backgroundColor: '#2563eb',
-    paddingHorizontal: 20,
+    paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 8,
-    minWidth: 70,
+    minWidth: 50,
     alignItems: 'center',
   },
   saveButtonDisabled: {
@@ -446,7 +543,7 @@ const styles = StyleSheet.create({
   saveText: {
     color: 'white',
     fontWeight: '600',
-    fontSize: 16,
+    fontSize: 15,
   },
   section: {
     backgroundColor: 'white',
@@ -533,5 +630,53 @@ const styles = StyleSheet.create({
   careLevelTextActive: {
     fontWeight: '600',
     color: '#1e293b',
+  },
+  dateButton: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  dateButtonText: {
+    fontSize: 15,
+    color: '#1e293b',
+  },
+  dateIcon: {
+    fontSize: 16,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    backgroundColor: '#f8fafc',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  modalCancel: {
+    fontSize: 16,
+    color: '#64748b',
+  },
+  modalDone: {
+    fontSize: 16,
+    color: '#2563eb',
+    fontWeight: '600',
   },
 });

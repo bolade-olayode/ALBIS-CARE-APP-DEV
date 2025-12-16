@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { ScreenWrapper } from '../../components';
 import { staffApi } from '../../services/api/staffApi';
+import { formatDate } from '../../utils/dateFormatter';
 
 interface StaffDetailScreenProps {
   route: any;
@@ -19,7 +20,8 @@ interface StaffDetailScreenProps {
 }
 
 export default function StaffDetailScreen({ route, navigation }: StaffDetailScreenProps) {
-  const { staffId } = route.params;
+  const { staffId } = route.params; 
+  
   const [staff, setStaff] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -47,7 +49,7 @@ export default function StaffDetailScreen({ route, navigation }: StaffDetailScre
   const handleDelete = () => {
     Alert.alert(
       'Delete Staff Member',
-      `Are you sure you want to delete ${staff?.name}? This action cannot be undone.`,
+      `Are you sure you want to delete ${staff?.first_name} ${staff?.last_name}? This action cannot be undone.`,
       [
         {
           text: 'Cancel',
@@ -140,7 +142,8 @@ export default function StaffDetailScreen({ route, navigation }: StaffDetailScre
         <Text style={styles.headerTitle}>Staff Details</Text>
         <TouchableOpacity
           style={styles.editButton}
-          onPress={() => navigation.navigate('EditStaff', { staffId: staff.id })}
+          // FIXED: Using staffId from route params instead of staff object
+          onPress={() => navigation.navigate('EditStaff', { staffId: staffId })}
         >
           <Text style={styles.editButtonText}>Edit</Text>
         </TouchableOpacity>
@@ -207,7 +210,7 @@ export default function StaffDetailScreen({ route, navigation }: StaffDetailScre
                 <Text style={styles.infoValue}>
                   {staff.address_line1}
                   {staff.address_line2 ? `\n${staff.address_line2}` : ''}
-                </Text>
+               </ Text>
               </View>
             )}
 
@@ -242,7 +245,7 @@ export default function StaffDetailScreen({ route, navigation }: StaffDetailScre
           {staff.joined_date && (
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>📅 Joined:</Text>
-              <Text style={styles.infoValue}>{staff.joined_date}</Text>
+              <Text style={styles.infoValue}>{formatDate(staff.joined_date)}</Text>
             </View>
           )}
         </View>

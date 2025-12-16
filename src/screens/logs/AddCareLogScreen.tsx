@@ -11,11 +11,15 @@ import {
   Alert,
   Switch,
   ScrollView,
+  Platform,
+  Modal,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { ScreenWrapper, FormScrollView } from '../../components';
 import { careLogApi } from '../../services/api/careLogApi';
 import { clientApi } from '../../services/api/clientApi';
 import { staffApi } from '../../services/api/staffApi';
+import { formatDate, parseDate } from '../../utils/dateFormatter';
 
 interface AddCareLogScreenProps {
   navigation: any;
@@ -26,11 +30,16 @@ export default function AddCareLogScreen({ navigation }: AddCareLogScreenProps) 
   const [clients, setClients] = useState<any[]>([]);
   const [staff, setStaff] = useState<any[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  
+  // Date Picker State
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [tempDate, setTempDate] = useState(new Date());
 
   const [formData, setFormData] = useState({
     client_id: '',
     staff_id: '',
-    visit_date: new Date().toISOString().split('T')[0],
+    // Initialized with DD-MM-YYYY
+    visit_date: formatDate(new Date().toISOString().split('T')[0]),
     visit_time: new Date().toTimeString().split(' ')[0].substring(0, 5),
     duration_minutes: '60',
     visit_type: 'routine',
@@ -82,6 +91,31 @@ export default function AddCareLogScreen({ navigation }: AddCareLogScreenProps) 
     setFormData({ ...formData, [field]: value });
   };
 
+  // Date Picker Logic
+  const onDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+      if (selectedDate) {
+        const isoDate = selectedDate.toISOString().split('T')[0];
+        updateField('visit_date', formatDate(isoDate));
+      }
+    } else {
+      if (selectedDate) setTempDate(selectedDate);
+    }
+  };
+
+  const confirmIOSDate = () => {
+    const isoDate = tempDate.toISOString().split('T')[0];
+    updateField('visit_date', formatDate(isoDate));
+    setShowDatePicker(false);
+  };
+
+  const openDatePicker = () => {
+    const currentDate = formData.visit_date ? new Date(parseDate(formData.visit_date)) : new Date();
+    setTempDate(currentDate);
+    setShowDatePicker(true);
+  };
+
   const handleSubmit = async () => {
     if (!formData.client_id || !formData.staff_id) {
       Alert.alert('Validation Error', 'Please select a client and staff member');
@@ -98,6 +132,8 @@ export default function AddCareLogScreen({ navigation }: AddCareLogScreenProps) 
     try {
       const submitData = {
         ...formData,
+        // Convert date back to SQL Format
+        visit_date: parseDate(formData.visit_date),
         client_id: parseInt(formData.client_id),
         staff_id: parseInt(formData.staff_id),
         duration_minutes: parseInt(formData.duration_minutes) || 0,
@@ -135,26 +171,27 @@ export default function AddCareLogScreen({ navigation }: AddCareLogScreenProps) 
 
   return (
     <ScreenWrapper>
-      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.cancelButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Text style={styles.cancelText}>Cancel</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Add Care Log</Text>
-        <TouchableOpacity
-          style={[styles.saveButton, loading && styles.saveButtonDisabled]}
-          onPress={handleSubmit}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="white" size="small" />
-          ) : (
-            <Text style={styles.saveText}>Save</Text>
-          )}
-        </TouchableOpacity>
+        <View style={styles.headerContent}>
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.cancelText}>Cancel</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Add Care Log</Text>
+          <TouchableOpacity
+            style={[styles.saveButton, loading && styles.saveButtonDisabled]}
+            onPress={handleSubmit}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="white" size="small" />
+            ) : (
+              <Text style={styles.saveText}>Save</Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       <FormScrollView>
@@ -208,13 +245,56 @@ export default function AddCareLogScreen({ navigation }: AddCareLogScreenProps) 
             ))}
           </ScrollView>
 
+          {/* Date Picker Button */}
           <Text style={styles.label}>Visit Date *</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.visit_date}
-            onChangeText={(text) => updateField('visit_date', text)}
-            placeholder="YYYY-MM-DD"
-          />
+          <TouchableOpacity 
+            style={styles.dateButton} 
+            onPress={openDatePicker}
+          >
+            <Text style={styles.dateButtonText}>
+              {formData.visit_date || 'Select Date'}
+            </Text>
+            <Text style={styles.dateIcon}></Text>
+          </TouchableOpacity>
+
+          {/* Modal Picker for iOS / Default for Android */}
+          {showDatePicker && (
+            Platform.OS === 'ios' ? (
+              <Modal
+                transparent={true}
+                animationType="slide"
+                visible={showDatePicker}
+                onRequestClose={() => setShowDatePicker(false)}
+              >
+                <View style={styles.modalOverlay}>
+                  <View style={styles.modalContent}>
+                    <View style={styles.modalHeader}>
+                      <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                        <Text style={styles.modalCancel}>Cancel</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={confirmIOSDate}>
+                        <Text style={styles.modalDone}>Done</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <DateTimePicker
+                      value={tempDate}
+                      mode="date"
+                      display="spinner"
+                      onChange={onDateChange}
+                      textColor="black"
+                    />
+                  </View>
+                </View>
+              </Modal>
+            ) : (
+              <DateTimePicker
+                value={tempDate}
+                mode="date"
+                display="default"
+                onChange={onDateChange}
+              />
+            )
+          )}
 
           <Text style={styles.label}>Visit Time *</Text>
           <TextInput
@@ -416,7 +496,7 @@ export default function AddCareLogScreen({ navigation }: AddCareLogScreenProps) 
           <Text style={styles.sectionTitle}>Follow-up</Text>
 
           <View style={styles.switchRow}>
-            <Text style={styles.switchLabel}>⚠ Follow-up Required</Text>
+            <Text style={styles.switchLabel}>⚠️ Follow-up Required</Text>
             <Switch
               value={formData.follow_up_required}
               onValueChange={(value) => updateField('follow_up_required', value)}
@@ -445,46 +525,44 @@ export default function AddCareLogScreen({ navigation }: AddCareLogScreenProps) 
 }
 
 const styles = StyleSheet.create({
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: '#64748b',
-  },
   header: {
     backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
     paddingTop: 10,
-    paddingBottom: 16,
-    paddingHorizontal: 16,
+  },
+  headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    paddingHorizontal: 12,
+    paddingBottom: 16,
+    minHeight: 50,
   },
   cancelButton: {
     padding: 8,
+    minWidth: 50,
+    alignItems: 'flex-start',
   },
   cancelText: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#ef4444',
     fontWeight: '600',
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: 'bold',
     color: '#1e293b',
+    flex: 1,
+    textAlign: 'center',
+    marginHorizontal: 4,
   },
   saveButton: {
     backgroundColor: '#2563eb',
-    paddingHorizontal: 20,
+    paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 8,
-    minWidth: 70,
+    minWidth: 50,
     alignItems: 'center',
   },
   saveButtonDisabled: {
@@ -493,7 +571,7 @@ const styles = StyleSheet.create({
   saveText: {
     color: 'white',
     fontWeight: '600',
-    fontSize: 16,
+    fontSize: 15,
   },
   section: {
     backgroundColor: 'white',
@@ -597,5 +675,65 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#1e293b',
     fontWeight: '500',
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#64748b',
+  },
+  // Date Button Styles
+  dateButton: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  dateButtonText: {
+    fontSize: 15,
+    color: '#1e293b',
+  },
+  dateIcon: {
+    fontSize: 16,
+  },
+  // iOS Modal Styles
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    backgroundColor: '#f8fafc',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  modalCancel: {
+    fontSize: 16,
+    color: '#64748b',
+  },
+  modalDone: {
+    fontSize: 16,
+    color: '#2563eb',
+    fontWeight: '600',
   },
 });

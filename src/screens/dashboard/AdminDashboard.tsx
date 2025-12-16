@@ -8,6 +8,8 @@ import {
   SafeAreaView,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback } from 'react';
 
 interface AdminDashboardProps {
   userData: any;
@@ -20,9 +22,13 @@ export default function AdminDashboard({ userData, onLogout, navigation }: Admin
   const [staffCount, setStaffCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+ useFocusEffect(
+  useCallback(() => {
     loadStats();
-  }, []);
+    // Return a cleanup function if needed (usually empty for simple fetch)
+    return () => {}; 
+  }, [])
+);
 
   const loadStats = async () => {
     try {
@@ -113,6 +119,28 @@ export default function AdminDashboard({ userData, onLogout, navigation }: Admin
           </View>
         </TouchableOpacity>
 
+   <TouchableOpacity
+  style={styles.actionCard}
+  onPress={() => navigation.navigate('VisitList')}
+>
+  <Text style={styles.actionIcon}>📅</Text>
+  <View style={styles.actionContent}>
+    <Text style={styles.actionTitle}>Schedule Visits</Text>
+    <Text style={styles.actionDescription}>Create and manage care visits</Text>
+  </View>
+</TouchableOpacity>
+
+<TouchableOpacity
+  style={styles.actionCard}
+  onPress={() => navigation.navigate('TransportList', { userData })} // Pass userData
+>
+  <Text style={styles.actionIcon}>🚗</Text>
+  <View style={styles.actionContent}>
+    <Text style={styles.actionTitle}>Transport</Text>
+    <Text style={styles.actionDescription}>Manage driver schedules</Text>
+  </View>
+</TouchableOpacity>
+
 <TouchableOpacity
   style={styles.actionCard}
   onPress={() => navigation.navigate('CareLogList')}
@@ -124,18 +152,11 @@ export default function AdminDashboard({ userData, onLogout, navigation }: Admin
   </View>
 </TouchableOpacity>
 
-      <TouchableOpacity
+<TouchableOpacity 
   style={styles.actionCard}
-  onPress={() => navigation.navigate('VisitList')}
+  onPress={() => navigation.navigate('Analytics')}
 >
-  <Text style={styles.actionIcon}>📅</Text>
-  <View style={styles.actionContent}>
-    <Text style={styles.actionTitle}>Schedule Visits</Text>
-    <Text style={styles.actionDescription}>Create and manage care visits</Text>
-  </View>
-</TouchableOpacity>
-
-        <TouchableOpacity style={styles.actionCard}>
+    
           <Text style={styles.actionIcon}>📊</Text>
           <View style={styles.actionContent}>
             <Text style={styles.actionTitle}>View Reports</Text>

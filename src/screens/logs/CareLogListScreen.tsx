@@ -1,6 +1,6 @@
 // src/screens/logs/CareLogListScreen.tsx
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import {
 import { ScreenWrapper } from '../../components';
 import { careLogApi, CareLog } from '../../services/api/careLogApi';
 import { useFocusEffect } from '@react-navigation/native';
+import { formatDate } from '../../utils/dateFormatter'; // Import Helper
 
 interface CareLogListScreenProps {
   navigation: any;
@@ -79,31 +80,21 @@ export default function CareLogListScreen({ navigation, route }: CareLogListScre
 
   const getVisitTypeColor = (visitType: string) => {
     switch (visitType) {
-      case 'routine':
-        return '#3b82f6';
-      case 'urgent':
-        return '#ef4444';
-      case 'follow_up':
-        return '#f59e0b';
-      default:
-        return '#6b7280';
+      case 'routine': return '#3b82f6';
+      case 'urgent': return '#ef4444';
+      case 'follow_up': return '#f59e0b';
+      default: return '#6b7280';
     }
   };
 
   const getMoodEmoji = (mood: string) => {
     switch (mood?.toLowerCase()) {
-      case 'happy':
-        return '😊';
-      case 'calm':
-        return '😌';
-      case 'anxious':
-        return '😰';
-      case 'sad':
-        return '😢';
-      case 'agitated':
-        return '😠';
-      default:
-        return '😐';
+      case 'happy': return '😊';
+      case 'calm': return '😌';
+      case 'anxious': return '😰';
+      case 'sad': return '😢';
+      case 'agitated': return '😠';
+      default: return '😐';
     }
   };
 
@@ -132,7 +123,8 @@ export default function CareLogListScreen({ navigation, route }: CareLogListScre
       <View style={styles.logInfo}>
         <View style={styles.infoRow}>
           <Text style={styles.infoIcon}>📅</Text>
-          <Text style={styles.infoText}>{item.visit_date}</Text>
+          {/* Apply Date Formatting Here */}
+          <Text style={styles.infoText}>{formatDate(item.visit_date)}</Text>
           <Text style={styles.infoDivider}>•</Text>
           <Text style={styles.infoIcon}>🕐</Text>
           <Text style={styles.infoText}>{item.visit_time}</Text>
@@ -151,7 +143,6 @@ export default function CareLogListScreen({ navigation, route }: CareLogListScre
           </View>
         )}
 
-        {/* Activities performed */}
         <View style={styles.activitiesRow}>
           {item.personal_care === 1 && (
             <View style={styles.activityBadge}>
@@ -232,7 +223,6 @@ export default function CareLogListScreen({ navigation, route }: CareLogListScre
 
   return (
     <ScreenWrapper>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
@@ -249,7 +239,6 @@ export default function CareLogListScreen({ navigation, route }: CareLogListScre
         </TouchableOpacity>
       </View>
 
-      {/* Search Bar */}
       <View style={styles.searchContainer}>
         <Text style={styles.searchIcon}>🔍</Text>
         <TextInput
@@ -265,7 +254,6 @@ export default function CareLogListScreen({ navigation, route }: CareLogListScre
         )}
       </View>
 
-      {/* Stats Summary */}
       <View style={styles.statsContainer}>
         <View style={styles.statBox}>
           <Text style={styles.statNumber}>{filteredLogs.length}</Text>
@@ -285,7 +273,6 @@ export default function CareLogListScreen({ navigation, route }: CareLogListScre
         </View>
       </View>
 
-      {/* List */}
       <FlatList
         data={filteredLogs}
         renderItem={renderLogItem}

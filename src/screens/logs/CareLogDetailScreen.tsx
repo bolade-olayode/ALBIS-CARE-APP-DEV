@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { ScreenWrapper } from '../../components';
 import { careLogApi, CareLog } from '../../services/api/careLogApi';
+import { formatDate } from '../../utils/dateFormatter'; // Import Helper
 
 interface CareLogDetailScreenProps {
   route: any;
@@ -61,7 +62,7 @@ export default function CareLogDetailScreen({ route, navigation }: CareLogDetail
                 Alert.alert('Success', 'Care log deleted successfully', [
                   {
                     text: 'OK',
-                    onPress: () => navigation.goBack(),
+                    onPress: () => navigation.navigate('CareLogList'),
                   },
                 ]);
               } else {
@@ -78,31 +79,21 @@ export default function CareLogDetailScreen({ route, navigation }: CareLogDetail
 
   const getMoodEmoji = (mood: string) => {
     switch (mood?.toLowerCase()) {
-      case 'happy':
-        return '😊';
-      case 'calm':
-        return '😌';
-      case 'anxious':
-        return '😰';
-      case 'sad':
-        return '😢';
-      case 'agitated':
-        return '😠';
-      default:
-        return '😐';
+      case 'happy': return '😊';
+      case 'calm': return '😌';
+      case 'anxious': return '😰';
+      case 'sad': return '😢';
+      case 'agitated': return '😠';
+      default: return '😐';
     }
   };
 
   const getVisitTypeColor = (visitType: string) => {
     switch (visitType) {
-      case 'routine':
-        return '#3b82f6';
-      case 'urgent':
-        return '#ef4444';
-      case 'follow_up':
-        return '#f59e0b';
-      default:
-        return '#6b7280';
+      case 'routine': return '#3b82f6';
+      case 'urgent': return '#ef4444';
+      case 'follow_up': return '#f59e0b';
+      default: return '#6b7280';
     }
   };
 
@@ -169,7 +160,8 @@ export default function CareLogDetailScreen({ route, navigation }: CareLogDetail
           <View style={styles.dateTimeRow}>
             <View style={styles.dateTimeItem}>
               <Text style={styles.dateTimeLabel}>📅 Date</Text>
-              <Text style={styles.dateTimeValue}>{log.visit_date}</Text>
+              {/* DATE FORMATTED HERE */}
+              <Text style={styles.dateTimeValue}>{formatDate(log.visit_date)}</Text>
             </View>
             <View style={styles.dateTimeItem}>
               <Text style={styles.dateTimeLabel}>🕐 Time</Text>

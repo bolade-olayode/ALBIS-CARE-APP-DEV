@@ -12,24 +12,38 @@ import AdminDashboard from '../screens/dashboard/AdminDashboard';
 import StaffDashboard from '../screens/dashboard/StaffDashboard';
 import DriverDashboard from '../screens/dashboard/DriverDashboard';
 import RelativeDashboard from '../screens/dashboard/RelativeDashboard';
+
+// Client Screens
 import ClientListScreen from '../screens/clients/ClientListScreen';
 import ClientDetailScreen from '../screens/clients/ClientDetailScreen';
 import AddClientScreen from '../screens/clients/AddClientScreen';
 import EditClientScreen from '../screens/clients/EditClientScreen';
+
+// Staff Screens
 import StaffListScreen from '../screens/staff/StaffListScreen';
 import StaffDetailScreen from '../screens/staff/StaffDetailScreen';
 import AddStaffScreen from '../screens/staff/AddStaffScreen';
 import EditStaffScreen from '../screens/staff/EditStaffScreen';
+
+// Care Log Screens
 import CareLogListScreen from '../screens/logs/CareLogListScreen';
 import CareLogDetailScreen from '../screens/logs/CareLogDetailScreen';
 import AddCareLogScreen from '../screens/logs/AddCareLogScreen';
 import EditCareLogScreen from '../screens/logs/EditCareLogScreen';
+
+// Visit Screens
 import VisitListScreen from '../screens/visits/VisitListScreen';
 import VisitDetailScreen from '../screens/visits/VisitDetailScreen';
 import ScheduleVisitScreen from '../screens/visits/ScheduleVisitScreen';
 import EditVisitScreen from '../screens/visits/EditVisitScreen';
 import VisitExecutionScreen from '../screens/visits/VisitExecutionScreen';
+
+// Transport Screens
+import TransportListScreen from '../screens/transport/TransportListScreen';
 import TransportExecutionScreen from '../screens/transport/TransportExecutionScreen';
+
+// Admin Screens
+import AnalyticsScreen from '../screens/admin/AnalyticsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -61,8 +75,6 @@ export default function AppNavigator() {
   const handleLogin = async (token: string, data: any) => {
     setUserToken(token);
     setUserData(data);
-    
-    // Save to AsyncStorage
     await AsyncStorage.setItem('authToken', token);
     await AsyncStorage.setItem('userData', JSON.stringify(data));
   };
@@ -86,30 +98,22 @@ export default function AppNavigator() {
     );
   }
 
+  // Determine Dashboard Component based on Role
   const getDashboardComponent = () => {
     const userType = userData?.user?.userType;
     const staffRole = userData?.staff?.staff_role;
-    const roleName = userData?.staff?.roleName || ''; // ✅ Added fallback
+    const roleName = userData?.staff?.roleName || ''; 
 
-    console.log('🔍 Dashboard Debug:', { userType, staffRole, roleName }); // ✅ Debug log
-
-    if (userType === 'admin') {
-      return AdminDashboard;
-    }
-
+    if (userType === 'admin') return AdminDashboard;
+    
     if (userType === 'staff') {
-      // Check BOTH staff_role and roleName for driver
-      if (staffRole === 'driver' || roleName === 'Driver') {
-        return DriverDashboard;
-      }
+      if (staffRole === 'driver' || roleName === 'Driver') return DriverDashboard;
       return StaffDashboard;
     }
 
-    if (userType === 'relative') {
-      return RelativeDashboard;
-    }
+    if (userType === 'relative') return RelativeDashboard;
 
-    return StaffDashboard;
+    return StaffDashboard; // Fallback
   };
 
   const DashboardComponent = getDashboardComponent();
@@ -129,6 +133,7 @@ export default function AppNavigator() {
           </Stack.Screen>
         ) : (
           <>
+            {/* Main Dashboard */}
             <Stack.Screen name="Dashboard">
               {(props) => (
                 <DashboardComponent 
@@ -139,53 +144,47 @@ export default function AppNavigator() {
               )}
             </Stack.Screen>
 
-            {/* Client Screens */}
+            {/* --- ADMIN & SHARED SCREENS --- */}
+            
+            {/* Analytics */}
+            <Stack.Screen name="Analytics" component={AnalyticsScreen} />
+
+            {/* Clients */}
             <Stack.Screen name="ClientList" component={ClientListScreen} />
             <Stack.Screen name="ClientDetail" component={ClientDetailScreen} />
             <Stack.Screen name="AddClient" component={AddClientScreen} />
             <Stack.Screen name="EditClient" component={EditClientScreen} />
             
-            {/* Staff Screens */}
+            {/* Staff */}
             <Stack.Screen name="StaffList" component={StaffListScreen} />
             <Stack.Screen name="StaffDetail" component={StaffDetailScreen} />
             <Stack.Screen name="AddStaff" component={AddStaffScreen} />
             <Stack.Screen name="EditStaff" component={EditStaffScreen} />
 
-            {/* Care Log Screens */}
+            {/* Care Logs */}
             <Stack.Screen name="CareLogList" component={CareLogListScreen} />
             <Stack.Screen name="CareLogDetail" component={CareLogDetailScreen} />
             <Stack.Screen name="AddCareLog" component={AddCareLogScreen} />
             <Stack.Screen name="EditCareLog" component={EditCareLogScreen} />
 
-            {/* Visit Screens */}
+            {/* Visits */}
             <Stack.Screen name="VisitList" component={VisitListScreen} />
             <Stack.Screen name="VisitDetail" component={VisitDetailScreen} />
             <Stack.Screen name="ScheduleVisit" component={ScheduleVisitScreen} />
             <Stack.Screen name="EditVisit" component={EditVisitScreen} />
-            
-            {/* Staff/Carer Screens */}
-            <Stack.Screen name="StaffDashboard">
-              {(props) => (
-                <StaffDashboard 
-                  {...props} 
-                  userData={userData} 
-                  onLogout={handleLogout} 
-                />
-              )}
-            </Stack.Screen>
             <Stack.Screen name="VisitExecution" component={VisitExecutionScreen} />
 
-            {/* Driver Screens */}
-            <Stack.Screen name="DriverDashboard">
-              {(props) => (
-                <DriverDashboard 
-                  {...props} 
-                  userData={userData} 
-                  onLogout={handleLogout} 
-                />
-              )}
-            </Stack.Screen>
+            {/* Transport */}
+            <Stack.Screen name="TransportList" component={TransportListScreen} />
             <Stack.Screen name="TransportExecution" component={TransportExecutionScreen} />
+
+            {/* Role Specific Dashboards (for direct navigation if needed) */}
+            <Stack.Screen name="StaffDashboard">
+              {(props) => <StaffDashboard {...props} userData={userData} onLogout={handleLogout} />}
+            </Stack.Screen>
+            <Stack.Screen name="DriverDashboard">
+              {(props) => <DriverDashboard {...props} userData={userData} onLogout={handleLogout} />}
+            </Stack.Screen>
           </>
         )}
       </Stack.Navigator>

@@ -12,6 +12,7 @@ import {
   RefreshControl,
   Alert,
 } from 'react-native';
+import { ScreenWrapper } from '../../components'; // Added Wrapper
 import { clientApi, Client } from '../../services/api/clientApi';
 
 interface ClientListScreenProps {
@@ -24,12 +25,12 @@ export default function ClientListScreen({ navigation }: ClientListScreenProps) 
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
- useEffect(() => {
-  const unsubscribe = navigation.addListener('focus', () => {
-    loadClients();
-  });
-  return unsubscribe;
-}, [navigation]);
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadClients();
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const loadClients = async () => {
     try {
@@ -109,35 +110,15 @@ export default function ClientListScreen({ navigation }: ClientListScreenProps) 
     
     switch (level) {
       case 'complex':
-        return {
-          backgroundColor: '#fee2e2',
-          textColor: '#991b1b',
-          priority: '🔴',
-        };
+        return { backgroundColor: '#fee2e2', textColor: '#991b1b', priority: '🔴' };
       case 'high':
-        return {
-          backgroundColor: '#fed7aa',
-          textColor: '#9a3412',
-          priority: '🟠',
-        };
+        return { backgroundColor: '#fed7aa', textColor: '#9a3412', priority: '🟠' };
       case 'medium':
-        return {
-          backgroundColor: '#fef3c7',
-          textColor: '#92400e',
-          priority: '🟡',
-        };
+        return { backgroundColor: '#fef3c7', textColor: '#92400e', priority: '🟡' };
       case 'low':
-        return {
-          backgroundColor: '#d1fae5',
-          textColor: '#065f46',
-          priority: '🟢',
-        };
+        return { backgroundColor: '#d1fae5', textColor: '#065f46', priority: '🟢' };
       default:
-        return {
-          backgroundColor: '#f1f5f9',
-          textColor: '#475569',
-          priority: '⚪',
-        };
+        return { backgroundColor: '#f1f5f9', textColor: '#475569', priority: '⚪' };
     }
   };
 
@@ -180,15 +161,17 @@ export default function ClientListScreen({ navigation }: ClientListScreenProps) 
 
   if (loading) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#2563eb" />
-        <Text style={styles.loadingText}>Loading clients...</Text>
-      </View>
+      <ScreenWrapper>
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color="#2563eb" />
+          <Text style={styles.loadingText}>Loading clients...</Text>
+        </View>
+      </ScreenWrapper>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <ScreenWrapper>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -245,20 +228,15 @@ export default function ClientListScreen({ navigation }: ClientListScreenProps) 
           </View>
         }
       />
-    </View>
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-  },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
   },
   loadingText: {
     marginTop: 12,
@@ -267,7 +245,7 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: 'white',
-    paddingTop: 50,
+    paddingTop: 10, // FIXED: Changed from 50 to 10 to match ScreenWrapper
     paddingBottom: 16,
     paddingHorizontal: 16,
     flexDirection: 'row',

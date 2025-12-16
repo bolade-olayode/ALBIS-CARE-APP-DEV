@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { ScreenWrapper } from '../../components';
 import { clientApi } from '../../services/api/clientApi';
+import { formatDate } from '../../utils/dateFormatter';
 
 interface ClientDetailScreenProps {
   route: any;
@@ -242,7 +243,7 @@ export default function ClientDetailScreen({ route, navigation }: ClientDetailSc
           {client.date_of_birth && (
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>🎂 Date of Birth:</Text>
-              <Text style={styles.infoValue}>{client.date_of_birth}</Text>
+              <Text style={styles.infoValue}>{formatDate(client.date_of_birth)}</Text>
             </View>
           )}
 
@@ -262,14 +263,14 @@ export default function ClientDetailScreen({ route, navigation }: ClientDetailSc
             {client.cSDate && (
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>📅 Start Date:</Text>
-                <Text style={styles.infoValue}>{client.cSDate}</Text>
+                <Text style={styles.infoValue}>{formatDate(client.cSDate)}</Text>
               </View>
             )}
 
             {client.cEDate && (
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>📅 End Date:</Text>
-                <Text style={styles.infoValue}>{client.cEDate}</Text>
+                <Text style={styles.infoValue}>{formatDate(client.cEDate)}</Text>
               </View>
             )}
           </View>

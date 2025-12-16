@@ -1,6 +1,6 @@
 // src/screens/visits/VisitListScreen.tsx
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import {
 import { ScreenWrapper } from '../../components';
 import { visitApi, ScheduledVisit } from '../../services/api/visitApi';
 import { useFocusEffect } from '@react-navigation/native';
+import { formatDate } from '../../utils/dateFormatter';
 
 interface VisitListScreenProps {
   navigation: any;
@@ -72,12 +73,10 @@ export default function VisitListScreen({ navigation, route }: VisitListScreenPr
   const filterVisits = (query: string, status: string) => {
     let filtered = visits;
 
-    // Filter by status
     if (status !== 'all') {
       filtered = filtered.filter((visit) => visit.status === status);
     }
 
-    // Filter by search query
     if (query.trim()) {
       const lowercaseQuery = query.toLowerCase();
       filtered = filtered.filter(
@@ -93,44 +92,17 @@ export default function VisitListScreen({ navigation, route }: VisitListScreenPr
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'scheduled':
-        return '#3b82f6';
-      case 'confirmed':
-        return '#10b981';
-      case 'in_progress':
-        return '#f59e0b';
-      case 'completed':
-        return '#6b7280';
-      case 'cancelled':
-        return '#ef4444';
-      case 'missed':
-        return '#dc2626';
-      default:
-        return '#6b7280';
+      case 'scheduled': return '#3b82f6';
+      case 'confirmed': return '#10b981';
+      case 'in_progress': return '#f59e0b';
+      case 'completed': return '#6b7280';
+      case 'cancelled': return '#ef4444';
+      case 'missed': return '#dc2626';
+      default: return '#6b7280';
     }
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'urgent':
-        return '#dc2626';
-      case 'high':
-        return '#f59e0b';
-      case 'normal':
-        return '#3b82f6';
-      case 'low':
-        return '#6b7280';
-      default:
-        return '#6b7280';
-    }
-  };
-
-  const isUpcoming = (visitDate: string) => {
-    const today = new Date().toISOString().split('T')[0];
-    return visitDate >= today;
-  };
-
-  const renderVisitItem = ({ item }: { item: ScheduledVisit }) => (
+  const renderVisitItem = ({ item }: { item: any }) => (
     <TouchableOpacity
       style={styles.visitCard}
       onPress={() => navigation.navigate('VisitDetail', { visitId: item.visit_id })}
@@ -141,26 +113,21 @@ export default function VisitListScreen({ navigation, route }: VisitListScreenPr
           <Text style={styles.staffName}>with {item.staff_name}</Text>
         </View>
         <View style={styles.badges}>
-          <View
+          <View 
             style={[
-              styles.statusBadge,
-              { backgroundColor: getStatusColor(item.status || 'scheduled') },
+              styles.statusBadge, 
+              { backgroundColor: getStatusColor(item.status || 'scheduled') }
             ]}
           >
             <Text style={styles.statusText}>
               {item.status?.toUpperCase() || 'SCHEDULED'}
             </Text>
           </View>
-          {item.priority && item.priority !== 'normal' && (
-            <View
-              style={[
-                styles.priorityBadge,
-                { backgroundColor: getPriorityColor(item.priority) },
-              ]}
-            >
-              <Text style={styles.priorityText}>
-                {item.priority.toUpperCase()}
-              </Text>
+          
+          {/* Transport Badge */}
+          {item.transport_id && (
+            <View style={styles.transportBadge}>
+              <Text style={styles.transportText}>🚗 + Transport</Text>
             </View>
           )}
         </View>
@@ -169,16 +136,10 @@ export default function VisitListScreen({ navigation, route }: VisitListScreenPr
       <View style={styles.visitInfo}>
         <View style={styles.infoRow}>
           <Text style={styles.infoIcon}>📅</Text>
-          <Text style={styles.infoText}>{item.visit_date}</Text>
+          <Text style={styles.infoText}>{formatDate(item.visit_date)}</Text>
           <Text style={styles.infoDivider}>•</Text>
           <Text style={styles.infoIcon}>🕐</Text>
           <Text style={styles.infoText}>{item.visit_time}</Text>
-          {item.estimated_duration && (
-            <>
-              <Text style={styles.infoDivider}>•</Text>
-              <Text style={styles.infoText}>{item.estimated_duration} mins</Text>
-            </>
-          )}
         </View>
 
         {item.visit_type && (
@@ -189,58 +150,13 @@ export default function VisitListScreen({ navigation, route }: VisitListScreenPr
             </Text>
           </View>
         )}
-
-        {item.service_type && (
-          <View style={styles.infoRow}>
-            <Text style={styles.infoIcon}>🏥</Text>
-            <Text style={styles.infoText}>{item.service_type}</Text>
-          </View>
-        )}
-
-        {item.is_recurring === 1 && (
-          <View style={styles.recurringBadge}>
-            <Text style={styles.recurringText}>
-              🔄 Recurring ({item.recurrence_pattern})
-            </Text>
-          </View>
-        )}
       </View>
     </TouchableOpacity>
-  );
-
-  const renderEmptyState = () => (
-    <View style={styles.emptyState}>
-      <Text style={styles.emptyStateIcon}>📅</Text>
-      <Text style={styles.emptyStateTitle}>No Visits Scheduled</Text>
-      <Text style={styles.emptyStateText}>
-        {searchQuery || statusFilter !== 'all'
-          ? 'No visits match your filters'
-          : 'Start by scheduling your first visit'}
-      </Text>
-      {!searchQuery && statusFilter === 'all' && (
-        <TouchableOpacity
-          style={styles.emptyStateButton}
-          onPress={() => navigation.navigate('ScheduleVisit')}
-        >
-          <Text style={styles.emptyStateButtonText}>+ Schedule Visit</Text>
-        </TouchableOpacity>
-      )}
-    </View>
   );
 
   if (loading) {
     return (
       <ScreenWrapper>
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Text style={styles.backText}>← Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Scheduled Visits</Text>
-          <View style={styles.headerSpacer} />
-        </View>
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color="#2563eb" />
           <Text style={styles.loadingText}>Loading visits...</Text>
@@ -251,24 +167,22 @@ export default function VisitListScreen({ navigation, route }: VisitListScreenPr
 
   return (
     <ScreenWrapper>
-      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
+        <TouchableOpacity 
+          style={styles.backButton} 
           onPress={() => navigation.goBack()}
         >
           <Text style={styles.backText}>← Back</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Scheduled Visits</Text>
-        <TouchableOpacity
-          style={styles.addButton}
+        <TouchableOpacity 
+          style={styles.addButton} 
           onPress={() => navigation.navigate('ScheduleVisit')}
         >
           <Text style={styles.addButtonText}>+ Add</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Search Bar */}
       <View style={styles.searchContainer}>
         <Text style={styles.searchIcon}>🔍</Text>
         <TextInput
@@ -284,75 +198,28 @@ export default function VisitListScreen({ navigation, route }: VisitListScreenPr
         )}
       </View>
 
-      {/* Status Filter */}
       <View style={styles.filterContainer}>
-        <TouchableOpacity
-          style={[
-            styles.filterButton,
-            statusFilter === 'all' && styles.filterButtonActive,
-          ]}
-          onPress={() => handleStatusFilter('all')}
-        >
-          <Text
+        {['all', 'scheduled', 'confirmed', 'completed'].map((status) => (
+          <TouchableOpacity
+            key={status}
             style={[
-              styles.filterButtonText,
-              statusFilter === 'all' && styles.filterButtonTextActive,
+              styles.filterButton, 
+              statusFilter === status && styles.filterButtonActive
             ]}
+            onPress={() => handleStatusFilter(status)}
           >
-            All
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.filterButton,
-            statusFilter === 'scheduled' && styles.filterButtonActive,
-          ]}
-          onPress={() => handleStatusFilter('scheduled')}
-        >
-          <Text
-            style={[
-              styles.filterButtonText,
-              statusFilter === 'scheduled' && styles.filterButtonTextActive,
-            ]}
-          >
-            Scheduled
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.filterButton,
-            statusFilter === 'confirmed' && styles.filterButtonActive,
-          ]}
-          onPress={() => handleStatusFilter('confirmed')}
-        >
-          <Text
-            style={[
-              styles.filterButtonText,
-              statusFilter === 'confirmed' && styles.filterButtonTextActive,
-            ]}
-          >
-            Confirmed
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.filterButton,
-            statusFilter === 'completed' && styles.filterButtonActive,
-          ]}
-          onPress={() => handleStatusFilter('completed')}
-        >
-          <Text
-            style={[
-              styles.filterButtonText,
-              statusFilter === 'completed' && styles.filterButtonTextActive,
-            ]}
-          >
-            Completed
-          </Text>
-        </TouchableOpacity>
+            <Text 
+              style={[
+                styles.filterButtonText, 
+                statusFilter === status && styles.filterButtonTextActive
+              ]}
+            >
+              {status.charAt(0).toUpperCase() + status.slice(1)}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
-      {/* Stats Summary */}
       <View style={styles.statsContainer}>
         <View style={styles.statBox}>
           <Text style={styles.statNumber}>{filteredVisits.length}</Text>
@@ -360,33 +227,17 @@ export default function VisitListScreen({ navigation, route }: VisitListScreenPr
         </View>
         <View style={styles.statBox}>
           <Text style={styles.statNumber}>
-            {
-              filteredVisits.filter(
-                (v) => v.visit_date === new Date().toISOString().split('T')[0]
-              ).length
-            }
+            {filteredVisits.filter((v) => v.visit_date === new Date().toISOString().split('T')[0]).length}
           </Text>
           <Text style={styles.statLabel}>Today</Text>
         </View>
-        <View style={styles.statBox}>
-          <Text style={styles.statNumber}>
-            {
-              filteredVisits.filter(
-                (v) => isUpcoming(v.visit_date) && v.status === 'scheduled'
-              ).length
-            }
-          </Text>
-          <Text style={styles.statLabel}>Upcoming</Text>
-        </View>
       </View>
 
-      {/* List */}
       <FlatList
         data={filteredVisits}
         renderItem={renderVisitItem}
         keyExtractor={(item) => item.visit_id?.toString() || Math.random().toString()}
         contentContainerStyle={styles.listContainer}
-        ListEmptyComponent={renderEmptyState}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -433,9 +284,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#1e293b',
-  },
-  headerSpacer: {
-    width: 60,
   },
   addButton: {
     backgroundColor: '#2563eb',
@@ -574,14 +422,15 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
   },
-  priorityBadge: {
-    paddingHorizontal: 10,
+  transportBadge: {
+    backgroundColor: '#fef3c7',
+    paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 8,
   },
-  priorityText: {
+  transportText: {
     fontSize: 10,
-    color: 'white',
+    color: '#d97706',
     fontWeight: 'bold',
   },
   visitInfo: {
@@ -603,49 +452,5 @@ const styles = StyleSheet.create({
   infoDivider: {
     marginHorizontal: 8,
     color: '#cbd5e1',
-  },
-  recurringBadge: {
-    backgroundColor: '#dbeafe',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    marginTop: 4,
-  },
-  recurringText: {
-    fontSize: 13,
-    color: '#1e40af',
-    fontWeight: '600',
-  },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-  },
-  emptyStateIcon: {
-    fontSize: 64,
-    marginBottom: 16,
-  },
-  emptyStateTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1e293b',
-    marginBottom: 8,
-  },
-  emptyStateText: {
-    fontSize: 14,
-    color: '#64748b',
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  emptyStateButton: {
-    backgroundColor: '#2563eb',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  emptyStateButtonText: {
-    color: 'white',
-    fontWeight: '600',
-    fontSize: 16,
   },
 });

@@ -13,6 +13,7 @@ import {
   Platform,
   Image,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons'; // Added Icon Import
 import { authApi } from '../../services/api/authApi';
 
 interface LoginScreenProps {
@@ -24,6 +25,9 @@ export default function LoginScreen({ navigation, onLogin }: LoginScreenProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  
+  // New state for toggling password visibility
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
   const handleLogin = async () => {
     // Validation
@@ -37,12 +41,12 @@ export default function LoginScreen({ navigation, onLogin }: LoginScreenProps) {
     try {
       const response = await authApi.login(email, password);
 
-if (response.success) {
-  // Pass token and user data to parent
-  if (onLogin) {
-    onLogin(response.data.token, response.data);
-  }
-} else {
+      if (response.success) {
+        // Pass token and user data to parent
+        if (onLogin) {
+          onLogin(response.data.token, response.data);
+        }
+      } else {
         Alert.alert('Login Failed', response.message || 'Invalid credentials');
       }
     } catch (error: any) {
@@ -83,17 +87,30 @@ if (response.success) {
           />
         </View>
 
-        {/* Password Input */}
+        {/* Password Input (Updated with Eye Icon) */}
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Password</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter your password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            editable={!loading}
-          />
+          <View style={styles.passwordContainer}>
+            <TextInput
+              style={styles.passwordInput}
+              placeholder="Enter your password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!isPasswordVisible} // Toggles based on state
+              editable={!loading}
+              autoCapitalize="none"
+            />
+            <TouchableOpacity 
+              style={styles.eyeIcon}
+              onPress={() => setIsPasswordVisible(!isPasswordVisible)}
+            >
+              <Ionicons 
+                name={isPasswordVisible ? "eye-off-outline" : "eye-outline"} 
+                size={24} 
+                color="#64748b" 
+              />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Login Button */}
@@ -160,6 +177,7 @@ const styles = StyleSheet.create({
     color: '#334155',
     marginBottom: 8,
   },
+  // Standard input style (used for Email)
   input: {
     backgroundColor: '#fff',
     borderWidth: 1,
@@ -169,6 +187,27 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
     color: '#1e293b',
+  },
+  // Container for Password Input + Icon
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 8,
+    paddingRight: 12, // Space for the icon
+  },
+  // Input inside the password container
+  passwordInput: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#1e293b',
+  },
+  eyeIcon: {
+    padding: 4,
   },
   button: {
     backgroundColor: '#2563eb',

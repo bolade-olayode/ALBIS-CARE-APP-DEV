@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { ScreenWrapper, FormScrollView } from '../../components';
 import { staffApi } from '../../services/api/staffApi';
+import { formatDate, parseDate } from '../../utils/dateFormatter';
 
 interface EditStaffScreenProps {
   route: any;
@@ -68,7 +69,7 @@ export default function EditStaffScreen({ route, navigation }: EditStaffScreenPr
           town: staff.town || '',
           postcode: staff.postcode || '',
           employment_type: staff.employment_type || 'full_time',
-          joined_date: staff.joined_date || '',
+          joined_date: formatDate(staff.joined_date),
           status: staff.status || 'active',
           pvg_number: staff.pvg_number || '',
           sssc_number: staff.sssc_number || '',
@@ -106,7 +107,12 @@ export default function EditStaffScreen({ route, navigation }: EditStaffScreenPr
     setSaving(true);
 
     try {
-      const response = await staffApi.updateStaff(staffId, formData);
+      const submitData = {
+        ...formData,
+        joined_date: parseDate(formData.joined_date),
+      };
+
+      const response = await staffApi.updateStaff(staffId, submitData);
 
       if (response.success) {
         Alert.alert(
@@ -142,18 +148,20 @@ export default function EditStaffScreen({ route, navigation }: EditStaffScreenPr
 
   return (
     <ScreenWrapper>
-      {/* Header */}
+      {/* Header - Flattened to match StaffDetailScreen */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.cancelButton}
+        <TouchableOpacity 
+          style={styles.cancelButton} 
           onPress={() => navigation.goBack()}
         >
           <Text style={styles.cancelText}>Cancel</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Edit Staff</Text>
-        <TouchableOpacity
-          style={[styles.saveButton, saving && styles.saveButtonDisabled]}
-          onPress={handleSubmit}
+        
+        <Text style={styles.headerTitle} numberOfLines={1}>Edit Staff</Text>
+        
+        <TouchableOpacity 
+          style={[styles.saveButton, saving && styles.saveButtonDisabled]} 
+          onPress={handleSubmit} 
           disabled={saving}
         >
           {saving ? (
@@ -168,28 +176,23 @@ export default function EditStaffScreen({ route, navigation }: EditStaffScreenPr
         {/* Personal Details */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Personal Details</Text>
-
           <Text style={styles.label}>First Name *</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.first_name}
-            onChangeText={(text) => updateField('first_name', text)}
-            placeholder="Enter first name"
+          <TextInput 
+            style={styles.input} 
+            value={formData.first_name} 
+            onChangeText={(text) => updateField('first_name', text)} 
           />
-
           <Text style={styles.label}>Last Name *</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.last_name}
-            onChangeText={(text) => updateField('last_name', text)}
-            placeholder="Enter last name"
+          <TextInput 
+            style={styles.input} 
+            value={formData.last_name} 
+            onChangeText={(text) => updateField('last_name', text)} 
           />
         </View>
 
         {/* Role Selection */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Role</Text>
-          
           <View style={styles.radioGroup}>
             {[
               { value: 1, label: '🔴 Care Manager', color: '#fee2e2' },
@@ -201,17 +204,17 @@ export default function EditStaffScreen({ route, navigation }: EditStaffScreenPr
                 key={role.value}
                 style={[
                   styles.roleButton,
-                  formData.role_id === role.value && {
-                    backgroundColor: role.color,
-                    borderColor: role.color,
+                  formData.role_id === role.value && { 
+                    backgroundColor: role.color, 
+                    borderColor: role.color 
                   },
                 ]}
                 onPress={() => updateField('role_id', role.value)}
               >
-                <Text
+                <Text 
                   style={[
-                    styles.roleButtonText,
-                    formData.role_id === role.value && styles.roleButtonTextActive,
+                    styles.roleButtonText, 
+                    formData.role_id === role.value && styles.roleButtonTextActive
                   ]}
                 >
                   {role.label}
@@ -221,81 +224,67 @@ export default function EditStaffScreen({ route, navigation }: EditStaffScreenPr
           </View>
         </View>
 
-        {/* Contact Information */}
+        {/* Contact Info */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Contact Information</Text>
-
           <Text style={styles.label}>Mobile *</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.mobile}
-            onChangeText={(text) => updateField('mobile', text)}
-            placeholder="07700900123"
-            keyboardType="phone-pad"
+          <TextInput 
+            style={styles.input} 
+            value={formData.mobile} 
+            onChangeText={(text) => updateField('mobile', text)} 
+            keyboardType="phone-pad" 
           />
-
           <Text style={styles.label}>Phone</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.phone}
-            onChangeText={(text) => updateField('phone', text)}
-            placeholder="01234567890"
-            keyboardType="phone-pad"
+          <TextInput 
+            style={styles.input} 
+            value={formData.phone} 
+            onChangeText={(text) => updateField('phone', text)} 
+            keyboardType="phone-pad" 
           />
-
           <Text style={styles.label}>Email</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.email}
-            onChangeText={(text) => updateField('email', text)}
-            placeholder="john.doe@gmail.com"
-            keyboardType="email-address"
-            autoCapitalize="none"
+          <TextInput 
+            style={styles.input} 
+            value={formData.email} 
+            onChangeText={(text) => updateField('email', text)} 
+            keyboardType="email-address" 
+            autoCapitalize="none" 
           />
         </View>
 
         {/* Address */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Address</Text>
-
           <Text style={styles.label}>Address Line 1</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.address_line1}
-            onChangeText={(text) => updateField('address_line1', text)}
-            placeholder="123 High Street"
+          <TextInput 
+            style={styles.input} 
+            value={formData.address_line1} 
+            onChangeText={(text) => updateField('address_line1', text)} 
           />
-
           <Text style={styles.label}>Address Line 2</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.address_line2}
-            onChangeText={(text) => updateField('address_line2', text)}
-            placeholder="Flat 4"
+          <TextInput 
+            style={styles.input} 
+            value={formData.address_line2} 
+            onChangeText={(text) => updateField('address_line2', text)} 
           />
-
           <Text style={styles.label}>Town</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.town}
-            onChangeText={(text) => updateField('town', text)}
-            placeholder="London"
+          <TextInput 
+            style={styles.input} 
+            value={formData.town} 
+            onChangeText={(text) => updateField('town', text)} 
           />
-
           <Text style={styles.label}>Postcode</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.postcode}
-            onChangeText={(text) => updateField('postcode', text)}
-            placeholder="SW1A 1AA"
-            autoCapitalize="characters"
+          <TextInput 
+            style={styles.input} 
+            value={formData.postcode} 
+            onChangeText={(text) => updateField('postcode', text)} 
+            autoCapitalize="characters" 
           />
         </View>
 
         {/* Employment Details */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Employment Details</Text>
-
+          
           <Text style={styles.label}>Employment Type</Text>
           <View style={styles.radioGroup}>
             {[
@@ -311,10 +300,10 @@ export default function EditStaffScreen({ route, navigation }: EditStaffScreenPr
                 ]}
                 onPress={() => updateField('employment_type', type.value)}
               >
-                <Text
+                <Text 
                   style={[
-                    styles.radioText,
-                    formData.employment_type === type.value && styles.radioTextActive,
+                    styles.radioText, 
+                    formData.employment_type === type.value && styles.radioTextActive
                   ]}
                 >
                   {type.label}
@@ -328,7 +317,7 @@ export default function EditStaffScreen({ route, navigation }: EditStaffScreenPr
             style={styles.input}
             value={formData.joined_date}
             onChangeText={(text) => updateField('joined_date', text)}
-            placeholder="YYYY-MM-DD"
+            placeholder="DD-MM-YYYY"
           />
 
           <Text style={styles.label}>Status</Text>
@@ -345,10 +334,10 @@ export default function EditStaffScreen({ route, navigation }: EditStaffScreenPr
                 ]}
                 onPress={() => updateField('status', status.value)}
               >
-                <Text
+                <Text 
                   style={[
-                    styles.radioText,
-                    formData.status === status.value && styles.radioTextActive,
+                    styles.radioText, 
+                    formData.status === status.value && styles.radioTextActive
                   ]}
                 >
                   {status.label}
@@ -357,59 +346,50 @@ export default function EditStaffScreen({ route, navigation }: EditStaffScreenPr
             ))}
           </View>
         </View>
-
-        {/* Professional Information */}
+        
+        {/* Professional Info */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Professional Information</Text>
-
           <Text style={styles.label}>PVG Number</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.pvg_number}
-            onChangeText={(text) => updateField('pvg_number', text)}
-            placeholder="Enter PVG number"
+          <TextInput 
+            style={styles.input} 
+            value={formData.pvg_number} 
+            onChangeText={(text) => updateField('pvg_number', text)} 
           />
-
           <Text style={styles.label}>SSSC Number</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.sssc_number}
-            onChangeText={(text) => updateField('sssc_number', text)}
-            placeholder="Enter SSSC number"
+          <TextInput 
+            style={styles.input} 
+            value={formData.sssc_number} 
+            onChangeText={(text) => updateField('sssc_number', text)} 
           />
-
           <Text style={styles.label}>Qualifications</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            value={formData.qualifications}
-            onChangeText={(text) => updateField('qualifications', text)}
-            placeholder="List qualifications and certifications..."
-            multiline
-            numberOfLines={4}
+          <TextInput 
+            style={[styles.input, styles.textArea]} 
+            value={formData.qualifications} 
+            onChangeText={(text) => updateField('qualifications', text)} 
+            multiline 
+            numberOfLines={4} 
           />
         </View>
 
         {/* Emergency Contact */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Emergency Contact</Text>
-
           <Text style={styles.label}>Contact Name</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.emergency_contact_name}
-            onChangeText={(text) => updateField('emergency_contact_name', text)}
-            placeholder="Enter emergency contact name"
+          <TextInput 
+            style={styles.input} 
+            value={formData.emergency_contact_name} 
+            onChangeText={(text) => updateField('emergency_contact_name', text)} 
           />
-
           <Text style={styles.label}>Contact Phone</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.emergency_contact_phone}
-            onChangeText={(text) => updateField('emergency_contact_phone', text)}
-            placeholder="07700900123"
-            keyboardType="phone-pad"
+          <TextInput 
+            style={styles.input} 
+            value={formData.emergency_contact_phone} 
+            onChangeText={(text) => updateField('emergency_contact_phone', text)} 
+            keyboardType="phone-pad" 
           />
         </View>
+
       </FormScrollView>
     </ScreenWrapper>
   );
@@ -430,7 +410,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     paddingTop: 10,
     paddingBottom: 16,
-    paddingHorizontal: 16,
+    paddingHorizontal: 16, // Matched to StaffDetailScreen
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -439,6 +419,8 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     padding: 8,
+    minWidth: 50,
+    alignItems: 'flex-start',
   },
   cancelText: {
     fontSize: 16,
@@ -446,16 +428,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: 'bold',
     color: '#1e293b',
+    flex: 1,
+    textAlign: 'center',
+    marginHorizontal: 4,
   },
   saveButton: {
     backgroundColor: '#2563eb',
-    paddingHorizontal: 20,
+    paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 8,
-    minWidth: 70,
+    minWidth: 50,
     alignItems: 'center',
   },
   saveButtonDisabled: {
@@ -464,7 +449,7 @@ const styles = StyleSheet.create({
   saveText: {
     color: 'white',
     fontWeight: '600',
-    fontSize: 16,
+    fontSize: 15,
   },
   section: {
     backgroundColor: 'white',

@@ -12,6 +12,8 @@ import {
   RefreshControl,
   Alert,
 } from 'react-native';
+// Added ScreenWrapper to imports
+import { ScreenWrapper } from '../../components'; 
 import { staffApi, Staff } from '../../services/api/staffApi';
 
 interface StaffListScreenProps {
@@ -32,17 +34,16 @@ export default function StaffListScreen({ navigation }: StaffListScreenProps) {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedSections, setExpandedSections] = useState<{ [key: number]: boolean }>({
-    1: true, // Care Manager expanded by default
-    2: true, // Carer expanded by default
-    3: true, // Nurse expanded by default
-    4: true, // Driver expanded by default
+    1: true,
+    2: true,
+    3: true,
+    4: true,
   });
 
   useEffect(() => {
     loadStaff();
   }, []);
 
-  // Auto-refresh when screen comes into focus
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       loadStaff();
@@ -104,7 +105,6 @@ export default function StaffListScreen({ navigation }: StaffListScreenProps) {
     }));
   };
 
-  // Group staff by role
   const groupStaffByRole = (): GroupedStaff[] => {
     const roleConfig = [
       { roleId: 1, roleName: 'Care Managers', color: '#fee2e2', textColor: '#991b1b', icon: '🔴' },
@@ -149,17 +149,19 @@ export default function StaffListScreen({ navigation }: StaffListScreenProps) {
 
   if (loading) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#2563eb" />
-        <Text style={styles.loadingText}>Loading staff...</Text>
-      </View>
+      <ScreenWrapper>
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color="#2563eb" />
+          <Text style={styles.loadingText}>Loading staff...</Text>
+        </View>
+      </ScreenWrapper>
     );
   }
 
   const groupedStaff = groupStaffByRole();
 
   return (
-    <View style={styles.container}>
+    <ScreenWrapper>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -215,7 +217,7 @@ export default function StaffListScreen({ navigation }: StaffListScreenProps) {
         ) : (
           groupedStaff.map((group) => (
             <View key={group.roleId} style={styles.roleSection}>
-              {/* Role Header - Collapsible */}
+              {/* Role Header */}
               <TouchableOpacity
                 style={[styles.roleHeader, { backgroundColor: group.color }]}
                 onPress={() => toggleSection(group.roleId)}
@@ -225,7 +227,7 @@ export default function StaffListScreen({ navigation }: StaffListScreenProps) {
                 </Text>
               </TouchableOpacity>
 
-              {/* Staff Cards - Only show if expanded */}
+              {/* Staff Cards */}
               {expandedSections[group.roleId] && (
                 <View style={styles.staffList}>
                   {group.staff.map(renderStaffCard)}
@@ -237,20 +239,15 @@ export default function StaffListScreen({ navigation }: StaffListScreenProps) {
 
         <View style={{ height: 40 }} />
       </ScrollView>
-    </View>
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-  },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
   },
   loadingText: {
     marginTop: 12,
@@ -259,7 +256,7 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: 'white',
-    paddingTop: 50,
+    paddingTop: 10, // CHANGED from 50 to 10
     paddingBottom: 16,
     paddingHorizontal: 16,
     flexDirection: 'row',
