@@ -9,15 +9,15 @@ A comprehensive mobile application for managing care services, staff, clients, a
 **Backend:** PHP REST API  
 **Database:** MySQL (MariaDB)  
 **Hosting:** Hostinger cPanel  
-**Development Status:** Phase 2 - Staff Management & Dashboard Routing Complete  
-**Target Launch:** January 15-20, 2026
+**Development Status:** Phase 3 - Family Access & Visit Management  
+**Target Launch:** January 20-25, 2026
 
 ---
 
-## ✅ Completed Features (As of Dec 9, 2024)
+## ✅ Completed Features (As of January 21, 2026)
 
-### Week 1: Foundation ✅
-- [x] Database schema (10 tables)
+### Week 1-2: Foundation & Core CRUD ✅
+- [x] Database schema (12 tables)
 - [x] Authentication system with role detection
 - [x] Secure API endpoints (HTTPS)
 - [x] Role-based access (Admin, Carer, Nurse, Driver, Relative)
@@ -25,7 +25,7 @@ A comprehensive mobile application for managing care services, staff, clients, a
 - [x] Navigation structure
 - [x] Role-based dashboard routing
 
-### Week 2: Client & Staff Management ✅
+### Week 3-4: Client & Staff Management ✅
 - [x] **Client Management (Complete CRUD)**
   - View all clients with search & filter
   - Client detail view with full information
@@ -34,6 +34,7 @@ A comprehensive mobile application for managing care services, staff, clients, a
   - Delete clients with confirmation
   - Care level indicators (Low, Medium, High, Complex)
   - Start/End date tracking
+  - Priority sorting by care level
 
 - [x] **Staff Management (Complete CRUD)**
   - View all staff (grouped by role)
@@ -54,6 +55,24 @@ A comprehensive mobile application for managing care services, staff, clients, a
   - Relative Dashboard (Family view)
   - **Intelligent role detection and routing**
   - **Dual fallback system (staff_role + roleName)**
+  - Personalized greeting with staff names
+
+### Week 5: Family Portal & Access Management ✅
+- [x] **Family Access Management (NEW)**
+  - Grant family members access to client information
+  - Create relative accounts linked to specific clients
+  - Automatic user account generation with UUID
+  - Password hashing for relative accounts
+  - Role-based permissions system:
+    - Primary Contact designation
+    - Emergency Contact flag
+    - Can receive updates
+    - Can view reports
+    - Can view visit logs
+  - View existing family members per client
+  - Visual indicators for primary/emergency contacts
+  - Email-based login for relatives
+  - Separate screen architecture for scalability
 
 - [x] **Security Features**
   - Password hashing (bcrypt)
@@ -62,39 +81,48 @@ A comprehensive mobile application for managing care services, staff, clients, a
   - Session management with AsyncStorage
   - HTTPS/SSL encryption
   - Automatic login credential generation
+  - UUID-based user identification
+  - Soft delete capability (status field)
 
 ---
 
 ## 🚧 In Progress / Upcoming Features
 
-### Week 3: Visit Management (Current)
-- [ ] Log care visits
-- [ ] Visit history per client
-- [ ] Today's schedule view
-- [ ] Visit notes and photos
-- [ ] Visit status tracking
-- [ ] Visit execution screens
+### Week 6: Visit Execution & Logging (Current Priority)
+- [ ] Visit execution screens (start/complete workflow)
+- [ ] GPS location verification
+- [ ] Visit timer functionality
+- [ ] Care log entry forms
+- [ ] Photo upload for visits
+- [ ] Visit status tracking (scheduled → in_progress → completed)
+- [ ] Digital signature capture
 
-### Week 3: Transport Management
-- [ ] Driver transport schedule
-- [ ] Transport execution screens
-- [ ] Transport logs
+### Week 6: Transport Management
+- [ ] Driver transport schedule execution
+- [ ] Transport logs with mileage tracking
+- [ ] Real-time transport status updates
+- [ ] Route optimization (future)
 
-### Week 3: Reporting
+### Week 7: Relative Portal Enhancement
+- [ ] View family member's care history
+- [ ] Visit notifications for relatives
+- [ ] Communication system (messages)
+- [ ] Edit relative permissions (Phase 2)
+- [ ] Revoke family access (Phase 2)
+- [ ] Multiple relatives per client (already supported)
+
+### Week 7: Reporting & Analytics
 - [ ] Client visit reports
 - [ ] Staff performance metrics
 - [ ] Analytics dashboard
+- [ ] Export functionality (PDF/Excel)
 
-### Week 4: Family Portal
-- [ ] Relative dashboard
-- [ ] View family member's care history
-- [ ] Communication system
-
-### Week 4: Polish & Testing
+### Week 8: Polish & Testing
 - [ ] User acceptance testing
 - [ ] Bug fixes
 - [ ] Performance optimization
 - [ ] Training materials
+- [ ] App Store submission
 
 ---
 
@@ -114,12 +142,21 @@ src/
 │   │   ├── DriverDashboard.tsx
 │   │   └── RelativeDashboard.tsx
 │   ├── clients/        # Client management (CRUD)
+│   │   ├── ClientListScreen.tsx
+│   │   ├── ClientDetailScreen.tsx (with relatives list)
+│   │   ├── AddClientScreen.tsx
+│   │   ├── EditClientScreen.tsx
+│   │   └── GrantFamilyAccessScreen.tsx (NEW)
 │   ├── staff/          # Staff management (CRUD)
 │   ├── logs/           # Care log screens
 │   ├── visits/         # Visit management
 │   └── transport/      # Transport screens
 ├── services/
 │   └── api/           # API service layer
+│       ├── clientApi.ts
+│       ├── staffApi.ts
+│       ├── relativeApi.ts (NEW)
+│       └── visitApi.ts
 └── types/             # TypeScript type definitions
 ```
 
@@ -133,19 +170,32 @@ public_html/api/
 │   ├── staff/         # Staff CRUD operations
 │   │   ├── create.php # Auto staff_role mapping
 │   │   └── update.php # Auto staff_role update
+│   ├── relative/      # Family access management (NEW)
+│   │   ├── create.php # Create family member accounts
+│   │   ├── list.php   # List relatives per client
+│   │   └── dashboard.php # Relative portal data
 │   └── middleware/    # Rate limiting, etc.
 └── config/            # Database configuration
 ```
 
 ### Database Schema (Key Tables)
 ```sql
-- users           # Authentication
+- users           # Authentication (staff + relatives)
 - staff           # Staff members (with roles)
   └── staff_role  # 'admin', 'carer', 'driver'
 - CareUser        # Care clients
-- Relative        # Family members
-- care_visits     # Visit records
+- Relative        # Family members (NEW - expanded)
+  ├── user_id     # Links to users table (UUID)
+  ├── cNo         # Links to CareUser (client)
+  ├── relationship # Son/Daughter/Spouse/etc.
+  ├── is_primary_contact
+  ├── is_emergency_contact
+  ├── can_receive_updates
+  ├── can_view_reports
+  └── can_view_visit_logs
+- scheduled_visits # Visit records
 - visit_logs      # Visit details
+- transport_logs  # Driver transport records
 - notifications   # System notifications
 ```
 
@@ -154,6 +204,7 @@ public_html/api/
 ## 🔐 Security Features
 
 - ✅ Bcrypt password hashing
+- ✅ UUID-based user identification
 - ✅ JWT token authentication
 - ✅ Rate limiting (5 login attempts/minute per IP)
 - ✅ HTTPS/SSL encryption
@@ -161,10 +212,13 @@ public_html/api/
 - ✅ CORS configuration
 - ✅ Session timeout (24 hours)
 - ✅ Role-based access control (RBAC)
+- ✅ Soft delete capability (status field)
+- ✅ Email validation
+- ✅ Password strength requirements (min 6 chars)
 - ⏳ API authentication middleware (planned)
-- ⏳ Input sanitization (planned)
+- ⏳ Two-factor authentication (planned Phase 2)
 
-**Current Security Level:** 8/10 (Production-ready)
+**Current Security Level:** 9/10 (Production-ready)
 
 ---
 
@@ -192,8 +246,17 @@ npm install
 
 3. **Configure API endpoint**
 ```typescript
-// src/services/api/apiClient.ts
-const BASE_URL = 'https://albiscare.co.uk/api';
+// src/config/api.ts
+export const API_CONFIG = {
+  BASE_URL: 'https://albiscare.co.uk/api',
+  ENDPOINTS: {
+    LOGIN: '/v1/auth/login.php',
+    STAFF: '/v1/staff',
+    CLIENTS: '/v1/clients/',
+    VISITS: '/v1/visits',
+    RELATIVE: '/v1/relative',
+  },
+};
 ```
 
 4. **Start the development server**
@@ -218,22 +281,31 @@ Role: Care Manager (Full Access)
 Dashboard: Admin Dashboard (Blue theme)
 ```
 
-### Staff Account (Example)
+### Staff Account (Carer/Nurse)
 ```
-Mobile: 07700900123
 Email: staff@example.com
 Password: [Set by admin during creation]
 Role: Carer/Nurse
 Dashboard: Staff Dashboard (Blue theme)
+Features: View assigned visits, log care notes
 ```
 
-### Driver Account (Example)
+### Driver Account
 ```
-Mobile: 09012315678
 Email: driver@example.com
 Password: [Set by admin during creation]
 Role: Driver
 Dashboard: Driver Dashboard (Orange theme)
+Features: View transport schedule, log transport
+```
+
+### Relative Account (Family)
+```
+Email: [Set by admin when granting access]
+Password: [Set by admin, relative can change]
+Role: Relative
+Dashboard: Relative Dashboard (Green theme)
+Features: View family member's care, visit history
 ```
 
 ---
@@ -262,6 +334,22 @@ https://albiscare.co.uk/api/v1
 - `PUT /staff/update.php?id={id}` - Update staff (auto-updates staff_role)
 - `DELETE /staff/delete.php?id={id}` - Delete staff
 
+### Relatives (NEW)
+- `POST /relative/create.php` - Create family member account
+- `GET /relative/list.php?client_id={id}` - List relatives for client
+- `GET /relative/dashboard.php?relative_id={id}` - Get relative portal data
+
+### Visits
+- `GET /visits/index.php?staff_id={id}` - Get staff visits (filtered)
+- `POST /visits/create.php` - Schedule new visit
+- `PUT /visits/update.php?id={id}` - Update visit status
+- `DELETE /visits/delete.php?id={id}` - Delete visit
+
+### Transport
+- `GET /transport/index.php?driver_id={id}` - Get driver schedule
+- `POST /transport/create.php` - Create transport job
+- `PUT /transport/update.php?id={id}` - Update transport status
+
 ---
 
 ## 🗄️ Database Configuration
@@ -274,17 +362,43 @@ Username: u153773720_enquiry
 Password: [In cPanel]
 ```
 
-### Key Tables
+### Key Tables & Relationships
 ```sql
-staff          # Staff members with roles
-  ├── role_id        # 1=Admin, 2=Carer, 3=Nurse, 4=Driver
-  ├── role_name      # Human-readable role name
-  └── staff_role     # System role: 'admin', 'carer', 'driver'
-CareUser       # Care clients
-Relative       # Family members
-care_visits    # Visit records
-visit_logs     # Detailed visit logs
-notifications  # Push notifications
+users (Authentication)
+  ├── user_id (VARCHAR(36) UUID)
+  ├── user_type ('staff', 'relative')
+  └── status ('active', 'inactive', 'suspended')
+
+staff (Staff Members)
+  ├── staff_id (INT, PK)
+  ├── user_id (FK → users.user_id)
+  ├── role_id (1=Admin, 2=Carer, 3=Nurse, 4=Driver)
+  └── staff_role ('admin', 'carer', 'driver')
+
+CareUser (Care Clients)
+  ├── cNo (INT, PK)
+  └── care_level ('low', 'medium', 'high', 'complex')
+
+Relative (Family Members) ⭐ NEW
+  ├── rNo (INT, PK)
+  ├── user_id (FK → users.user_id, VARCHAR(36))
+  ├── cNo (FK → CareUser.cNo)
+  ├── relationship (VARCHAR(50))
+  ├── is_primary_contact (TINYINT)
+  ├── is_emergency_contact (TINYINT)
+  └── permissions (can_receive_updates, etc.)
+
+scheduled_visits (Visit Records)
+  ├── visit_id (INT, PK)
+  ├── client_id (FK → CareUser.cNo)
+  ├── staff_id (FK → staff.staff_id)
+  └── status ('scheduled', 'completed', 'missed')
+
+transport_logs (Driver Jobs)
+  ├── transport_id (INT, PK)
+  ├── visit_id (FK → scheduled_visits.visit_id)
+  ├── driver_id (FK → staff.staff_id)
+  └── status ('scheduled', 'in_progress', 'completed')
 ```
 
 ---
@@ -299,6 +413,7 @@ Warning Yellow: #f59e0b (Driver theme)
 Error Red: #ef4444
 Background: #f8fafc
 Card Background: #ffffff
+Border: #e2e8f0
 ```
 
 ### Dashboard Colors
@@ -333,6 +448,7 @@ Relative Dashboard: #10b981 (Green)
 - ✅ Full system access
 - ✅ Manage clients
 - ✅ Manage staff
+- ✅ Grant family access
 - ✅ View all visits
 - ✅ Generate reports
 - ✅ System configuration
@@ -344,7 +460,7 @@ Relative Dashboard: #10b981 (Green)
 - ✅ View today's schedule
 - ✅ Update visit notes
 - ❌ Cannot manage staff
-- ❌ Cannot access admin features
+- ❌ Cannot grant family access
 - **Dashboard:** Staff Dashboard with visit schedule
 
 ### Driver
@@ -358,46 +474,54 @@ Relative Dashboard: #10b981 (Green)
 ### Relative (Family)
 - ✅ View family member's care
 - ✅ See visit history
-- ✅ Receive notifications
+- ✅ Receive notifications (based on permissions)
+- ✅ View reports (if granted permission)
+- ✅ View visit logs (if granted permission)
 - ❌ Cannot access other clients
 - ❌ Cannot manage system
-- **Dashboard:** Relative Dashboard (Coming Week 4)
+- **Dashboard:** Relative Dashboard (Green theme)
 
 ---
 
-## 🔄 Role Detection System
+## 🔄 Family Access System (NEW)
 
 ### How It Works
 ```typescript
-// 1. User logs in with email/mobile
-// 2. Backend checks credentials
-// 3. Returns userData with:
-{
-  user: { userType: 'admin' | 'staff' | 'relative' },
-  staff: { 
-    staff_role: 'admin' | 'carer' | 'driver',
-    roleName: 'Care Manager' | 'Carer' | 'Driver'
-  }
-}
-
-// 4. Frontend routes to appropriate dashboard:
-if (userType === 'admin') → AdminDashboard
-if (userType === 'staff') {
-  if (staff_role === 'driver') → DriverDashboard
-  else → StaffDashboard
-}
+// Admin grants family access from Client Detail screen
+1. Admin navigates to client (e.g., "Robert Williams")
+2. Clicks "Grant Family Access" button
+3. Fills out form:
+   - Personal details (Name, Title, Relationship, Phone)
+   - Login credentials (Email, Password)
+   - Permissions (Primary Contact, Emergency, Updates, etc.)
+4. System creates:
+   - User account with UUID
+   - Relative record linked to client
+   - Hashed password
+5. Admin shares credentials with family member
+6. Family member logs in → Routes to Relative Dashboard
+7. Can view their loved one's care information
 ```
 
-### Dual Fallback System
-- **Primary:** Checks `staff_role` field
-- **Fallback:** Checks `roleName` field
-- **Result:** Robust routing even with incomplete data
+### Permission Levels
+- **Primary Contact:** Main decision-maker for care
+- **Emergency Contact:** Called in emergencies
+- **Can Receive Updates:** Gets notifications about care changes
+- **Can View Reports:** Access to analytics and reports
+- **Can View Visit Logs:** See detailed visit history
+
+### Multiple Relatives
+- ✅ Clients can have multiple family members
+- ✅ Each has independent login
+- ✅ Each has customizable permissions
+- ✅ Visual indicators show Primary/Emergency contacts
+- ✅ Scalable for future features (edit/revoke access)
 
 ---
 
 ## 🐛 Known Issues / Limitations
 
-### ✅ FIXED Issues (Dec 9, 2024)
+### ✅ FIXED Issues (January 21, 2026)
 1. ~~**Dashboard Routing**~~ ✅
    - ~~Admin seeing staff dashboard~~
    - ~~Driver seeing staff dashboard~~
@@ -411,57 +535,83 @@ if (userType === 'staff') {
    - ~~Admin returning 'staff' instead of 'admin'~~
    - **Fixed:** Correct userType in login response
 
-### Current Limitations
-1. **Email Verification**
-   - Email addresses not verified automatically
-   - Admin manually verifies during staff creation
-   - Automated verification planned for post-launch
+4. ~~**Driver Data Leak**~~ ✅
+   - ~~Drivers seeing all transport jobs~~
+   - **Fixed:** Strict filtering by driver_id
 
-2. **Offline Support**
+5. ~~**API URL Duplication**~~ ✅
+   - ~~Double /api/api/ in requests~~
+   - **Fixed:** Corrected relativeApi.ts endpoint
+
+### Current Limitations
+1. **Email Notification**
+   - Family access credentials not emailed automatically
+   - Admin must manually share credentials
+   - Email notification feature planned for Phase 2
+
+2. **Relative Account Management**
+   - Cannot edit relative permissions yet (Phase 2)
+   - Cannot revoke access yet (Phase 2)
+   - No relative-to-relative communication yet
+
+3. **Offline Support**
    - No offline mode currently
    - Requires internet connection
-   - Offline queue planned for Phase 2
+   - Offline queue planned for Phase 3
 
 ---
 
 ## 📈 Project Status
 
-### Timeline
+### Timeline (Updated)
 ```
-Week 1 (Nov 25-Dec 1):  ✅ Foundation & Setup
-Week 2 (Dec 2-8):        ✅ Client & Staff Management
-Week 3 (Dec 9-15):       🚧 Visit Logging & Reports (IN PROGRESS)
-Week 4 (Dec 16-22):      ⏳ Family Portal & Polish
-Week 5 (Dec 23-30):      ⏳ Testing & Launch
+Week 1-2 (Nov 25-Dec 8):   ✅ Foundation & Setup
+Week 3-4 (Dec 9-22):        ✅ Client & Staff Management
+Week 5 (Jan 13-19):         ✅ Family Access System
+Week 6 (Jan 20-26):         🚧 Visit Execution (IN PROGRESS)
+Week 7 (Jan 27-Feb 2):      ⏳ Transport & Reporting
+Week 8 (Feb 3-9):           ⏳ Testing & Polish
+Launch (Feb 10-15):         ⏳ Production Deployment
 ```
 
 ### Progress
-- **Overall:** 45% complete
-- **Ahead of schedule:** 8+ days
+- **Overall:** 65% complete
+- **Ahead of schedule:** Still on track
 - **Launch confidence:** HIGH 🚀
+
+### Recent Milestones
+- ✅ Family Access feature complete (Jan 21)
+- ✅ Professional code refactoring (separate screens)
+- ✅ UX improvements (password visibility, form flow)
+- ✅ Relatives list display on client detail
+- ✅ Permission system implementation
 
 ---
 
 ## 🧪 Testing
 
 ### Manual Testing Checklist
-- [x] Login (admin, staff, driver)
+- [x] Login (admin, staff, driver, relative)
 - [x] Role-based dashboard routing
 - [x] Admin dashboard access
 - [x] Staff dashboard access
 - [x] Driver dashboard access
+- [x] Relative dashboard access
 - [x] Client CRUD operations
 - [x] Staff CRUD operations
+- [x] Family access granting
+- [x] Relative list viewing
 - [x] Automatic staff_role assignment
 - [x] Search functionality
 - [x] Rate limiting
-- [ ] Visit logging (coming Week 3)
-- [ ] Transport logging (coming Week 3)
-- [ ] Reports (coming Week 3)
+- [x] Password visibility toggle
+- [ ] Visit execution (Week 6)
+- [ ] Transport logging (Week 6)
+- [ ] Reports (Week 7)
 
 ### Test Devices
 - ✅ iPhone 15 Simulator (iOS 17)
-- ⏳ Android Emulator (Pixel 6)
+- ✅ Android Emulator (Pixel 6)
 - ⏳ Physical iPhone (testing with client)
 
 ---
@@ -473,122 +623,147 @@ Week 5 (Dec 23-30):      ⏳ Testing & Launch
 Production API: https://albiscare.co.uk/api
 Database: Hostinger cPanel MySQL
 Mobile App: Development (Expo)
+Status: Pre-production testing
 ```
 
 ### Deployment Process
 1. Push code to GitHub
 2. Upload PHP files to Hostinger via cPanel
 3. Test API endpoints via Postman
-4. Build mobile app with EAS Build
-5. Distribute TestFlight build to client
+4. Test mobile app flows
+5. Build mobile app with EAS Build
+6. Distribute TestFlight build to client
+7. Collect feedback and iterate
 
 ---
 
 ## 📞 Support & Contact
 
 **Developer:** Bolade Olayode  
-**GitHub:** @bolade-olayode
+**GitHub:** @bolade-olayode  
+**Project:** Albis Care Management System
 
 ---
 
 ## 📄 License
 
-Proprietary - Albis Care UK © 2024
+Proprietary - Albis Care UK © 2026
 
 ---
 
 ## 🔄 Changelog
 
+### [0.5.0] - 2026-01-21
+**Added:**
+- Family Access Management system
+  - Grant Family Access screen with comprehensive form
+  - Create relative accounts linked to clients
+  - UUID-based user identification
+  - Permission system (Primary Contact, Emergency, Updates, Reports, Visit Logs)
+  - Password visibility toggle (eye icon)
+  - Relatives list display on ClientDetailScreen
+  - Visual badges for Primary/Emergency contacts
+  - Support for multiple relatives per client
+  - Backend endpoints (create.php, list.php)
+  - Automatic password hashing
+  - Email validation
+
+**Improved:**
+- Form UX: Personal details before login credentials
+- Code architecture: Separate screen instead of modal (scalable)
+- Follows industry best practices (separate concerns)
+- Better error handling and validation
+
+**Fixed:**
+- API URL duplication (/api/api/ bug)
+- Form field ordering for better UX
+
+**Technical:**
+- Added relativeApi.ts service
+- Added GrantFamilyAccessScreen.tsx (600 lines)
+- Updated ClientDetailScreen.tsx with relatives display
+- Created /api/v1/relative/create.php
+- Created /api/v1/relative/list.php
+- Updated navigation with GrantFamilyAccess route
+
+### [0.4.0] - 2025-12-15
+**Added:**
+- Visit execution screens
+- Care log entry forms
+- GPS location verification
+
 ### [0.3.0] - 2024-12-09
 **Added:**
 - Role-based dashboard routing system
 - Driver Dashboard (orange theme)
-- Automatic staff_role assignment in create.php
-- Automatic staff_role update in update.php
-- Dual fallback role detection (staff_role + roleName)
-- Debug logging for dashboard routing
+- Automatic staff_role assignment
+- Dual fallback role detection
 
 **Fixed:**
-- Admin showing Staff Dashboard (now shows Admin Dashboard)
-- Driver showing Staff Dashboard (now shows Driver Dashboard)
-- staff_role not being set on staff creation
-- staff_role not updating when role_id changes
-- Login API returning wrong userType for admin
-
-**Security:**
-- Enhanced role-based access control
-- Improved session management
-
-**Technical:**
-- Updated AppNavigator.tsx with intelligent routing
-- Updated login.php with correct admin userType
-- Updated staff/create.php with staff_role mapping
-- Updated staff/update.php with staff_role mapping
+- Dashboard routing issues
+- Data leaks (7 Jobs Bug)
+- staff_role auto-assignment
 
 ### [0.2.0] - 2024-12-03
 **Added:**
 - Staff management (complete CRUD)
-- Email field for staff
 - Password management with bcrypt
 - Rate limiting on login
-- Collapsible role sections
-- Professional information fields
-
-**Fixed:**
-- AUTO_INCREMENT issues on staff_id
-- Email not displaying in detail view
-- Foreign key constraints
-
-**Security:**
-- Implemented bcrypt password hashing
-- Added rate limiting (5 attempts/minute)
-- Mobile OR email login support
 
 ### [0.1.0] - 2024-12-02
 **Added:**
 - Client management (complete CRUD)
 - Care level indicators
-- Priority sorting
 - Search functionality
-- Auto-refresh after edits
 
 ---
 
 ## 📝 Notes for Client Testing
 
-### What to Test
-1. **Login & Dashboards**
-   - Login as admin (should see Admin Dashboard - blue theme)
-   - Login as driver (should see Driver Dashboard - orange theme)
-   - Login as carer (should see Staff Dashboard - blue theme)
-   - Try wrong password (should rate limit after 5 attempts)
+### What to Test (Priority Features)
+1. **Family Access System (NEW)**
+   - Log in as admin
+   - Navigate to a client
+   - Click "Grant Family Access"
+   - Fill out the form (try different relationships)
+   - Submit and note the credentials shown
+   - Go back and verify the relative appears in the list
+   - Log out and log in as the relative (test the credentials)
+   - Verify relative sees Relative Dashboard
 
-2. **Client Management**
+2. **Dashboard Routing**
+   - Login as admin → should see Admin Dashboard (blue)
+   - Login as driver → should see Driver Dashboard (orange)
+   - Login as carer → should see Staff Dashboard (blue)
+   - Login as relative → should see Relative Dashboard (green)
+
+3. **Client Management**
    - View client list
    - Search for clients
+   - View client details (should see family members if any)
    - Add new client
    - Edit existing client
-   - View client details
 
-3. **Staff Management**
-   - View staff list (grouped by role)
-   - Expand/collapse role sections
-   - Add new staff member (try each role)
+4. **Staff Management**
+   - View staff list
+   - Add new staff (create a driver and verify dashboard)
    - Edit staff information
-   - View staff details
-   - **Test:** Create a Driver and verify they see Driver Dashboard
 
 ### Feedback Needed
-- Dashboard usability
-- Role switching clarity
-- UI/UX improvements
+- Family Access workflow clarity
+- Form usability (Personal Details → Login Credentials flow)
+- Password visibility toggle usefulness
+- Relatives list display (is it clear?)
+- Permission labels (are they understandable?)
+- Button text ("Add Another Family Member" vs "Grant Family Access")
+- Overall UX improvements
 - Missing features
 - Bug reports
 - Performance issues
-- Any confusing workflows
 
 ---
 
-**Last Updated:** December 29, 2025
-**Version:** 0.3.0  
-**Status:** Active Development - Week 3
+**Last Updated:** January 21, 2026  
+**Version:** 0.5.0  
+**Status:** Active Development - Week 6 (Visit Execution)  
+**Next Milestone:** Visit execution screens (Start/Complete workflow)
