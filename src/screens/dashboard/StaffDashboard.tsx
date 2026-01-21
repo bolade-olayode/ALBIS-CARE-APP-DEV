@@ -25,18 +25,23 @@ export default function StaffDashboard({ navigation, userData, onLogout }: Staff
   const [refreshing, setRefreshing] = useState(false);
   const [todayVisits, setTodayVisits] = useState<any[]>([]);
   const [upcomingVisits, setUpcomingVisits] = useState<any[]>([]);
-  const [stats, setStats] = useState({
-    today: 0,
-    upcoming: 0,
-    completed: 0,
-  });
+  const [stats, setStats] = useState({ today: 0, upcoming: 0, completed: 0 });
 
-  const staffId = userData?.staff?.staff_id || userData?.user?.id || 0;
-  const staffName = userData?.staff?.name || 'Staff Member';
+  // --- ROBUST DATA EXTRACTION ---
+  // 1. Get ID (Prioritize flat structure, fallback to nested)
+  const staffId = userData?.id || userData?.staff?.staff_id || userData?.user?.id || 0;
+  
+  // 2. Get Name (Prioritize flat structure, fallback to nested)
+  const staffName = userData?.name || userData?.staff?.name || userData?.user?.name || 'Staff Member';
 
   useEffect(() => {
-    loadDashboardData();
-  }, []);
+    if (staffId) {
+      loadDashboardData();
+    } else {
+      console.warn('No Staff ID found for dashboard');
+      setLoading(false);
+    }
+  }, [staffId]);
 
   const loadDashboardData = async () => {
     try {
@@ -44,8 +49,10 @@ export default function StaffDashboard({ navigation, userData, onLogout }: Staff
 
       const today = new Date().toISOString().split('T')[0];
       
+      // Get Today's Visits
       const todayResponse = await visitApi.getStaffVisits(staffId, today, today);
       
+      // Get Upcoming Visits
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
       const nextWeek = new Date();
@@ -60,14 +67,8 @@ export default function StaffDashboard({ navigation, userData, onLogout }: Staff
       if (todayResponse.success) {
         const visits = todayResponse.data?.visits || [];
         setTodayVisits(visits);
-        
         const completed = visits.filter((v: any) => v.status === 'completed').length;
-        
-        setStats(prev => ({
-          ...prev,
-          today: visits.length,
-          completed: completed,
-        }));
+        setStats(prev => ({ ...prev, today: visits.length, completed: completed }));
       }
 
       if (upcomingResponse.success) {
@@ -95,15 +96,7 @@ export default function StaffDashboard({ navigation, userData, onLogout }: Staff
       'Are you sure you want to logout?',
       [
         { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: () => {
-            if (onLogout) {
-              onLogout();
-            }
-          },
-        },
+        { text: 'Logout', style: 'destructive', onPress: () => onLogout && onLogout() },
       ]
     );
   };
@@ -132,7 +125,7 @@ export default function StaffDashboard({ navigation, userData, onLogout }: Staff
       <ScreenWrapper>
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color="#2563eb" />
-          <Text style={styles.loadingText}>Loading your schedule...</Text>
+          <Text style={styles.loadingText}>Loading schedule...</Text>
         </View>
       </ScreenWrapper>
     );
@@ -143,9 +136,7 @@ export default function StaffDashboard({ navigation, userData, onLogout }: Staff
       <ScrollView
         style={styles.container}
         contentContainerStyle={{ paddingBottom: 40 }}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         {/* Header */}
         <View style={styles.header}>
@@ -196,10 +187,7 @@ export default function StaffDashboard({ navigation, userData, onLogout }: Staff
                 style={styles.visitCard}
                 onPress={() => {
                   if (visit.status === 'scheduled' || visit.status === 'confirmed') {
-                    navigation?.navigate('VisitExecution', { 
-                      visitId: visit.visit_id,
-                      userData: userData
-                    });
+                    navigation?.navigate('VisitExecution', { visitId: visit.visit_id, userData: userData });
                   } else {
                     navigation?.navigate('VisitDetail', { visitId: visit.visit_id });
                   }
@@ -212,22 +200,13 @@ export default function StaffDashboard({ navigation, userData, onLogout }: Staff
                       🕐 {formatTime(visit.visit_time)} • {visit.estimated_duration || 60} mins
                     </Text>
                   </View>
-                  <View
-                    style={[
-                      styles.statusBadge,
-                      { backgroundColor: getStatusColor(visit.status) },
-                    ]}
-                  >
-                    <Text style={styles.statusText}>
-                      {visit.status?.toUpperCase()}
-                    </Text>
+                  <View style={[styles.statusBadge, { backgroundColor: getStatusColor(visit.status) }]}>
+                    <Text style={styles.statusText}>{visit.status?.toUpperCase()}</Text>
                   </View>
                 </View>
 
                 <View style={styles.visitDetails}>
-                  <Text style={styles.visitType}>
-                    📋 {visit.visit_type?.replace('_', ' ')}
-                  </Text>
+                  <Text style={styles.visitType}>📋 {visit.visit_type?.replace('_', ' ')}</Text>
                   {visit.special_instructions && (
                     <Text style={styles.visitInstructions} numberOfLines={2}>
                       ℹ️ {visit.special_instructions}
@@ -249,7 +228,6 @@ export default function StaffDashboard({ navigation, userData, onLogout }: Staff
         {upcomingVisits.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>📆 Upcoming This Week</Text>
-
             {upcomingVisits.slice(0, 5).map((visit) => (
               <TouchableOpacity
                 key={visit.visit_id}
@@ -272,8 +250,7 @@ export default function StaffDashboard({ navigation, userData, onLogout }: Staff
                 </View>
               </TouchableOpacity>
             ))}
-
-            {upcomingVisits.length > 5 && (
+             {upcomingVisits.length > 5 && (
               <TouchableOpacity
                 style={styles.viewAllButton}
                 onPress={() => navigation?.navigate('MySchedule')}
@@ -287,34 +264,21 @@ export default function StaffDashboard({ navigation, userData, onLogout }: Staff
         {/* Quick Actions */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>⚡ Quick Actions</Text>
-
-          <TouchableOpacity
-            style={styles.actionCard}
-            onPress={() => navigation?.navigate('MyCareLogs')}
-          >
+          <TouchableOpacity style={styles.actionCard} onPress={() => navigation?.navigate('MyCareLogs')}>
             <Text style={styles.actionIcon}>📋</Text>
             <View style={styles.actionContent}>
               <Text style={styles.actionTitle}>My Care Logs</Text>
               <Text style={styles.actionDescription}>View your completed care logs</Text>
             </View>
           </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionCard}
-            onPress={() => navigation?.navigate('MySchedule')}
-          >
+          <TouchableOpacity style={styles.actionCard} onPress={() => navigation?.navigate('MySchedule')}>
             <Text style={styles.actionIcon}>📅</Text>
             <View style={styles.actionContent}>
               <Text style={styles.actionTitle}>Full Schedule</Text>
               <Text style={styles.actionDescription}>View all your assigned visits</Text>
             </View>
           </TouchableOpacity>
-
-          {/* Logout Button */}
-          <TouchableOpacity
-            style={[styles.actionCard, styles.logoutCard]}
-            onPress={handleLogout}
-          >
+          <TouchableOpacity style={[styles.actionCard, styles.logoutCard]} onPress={handleLogout}>
             <Text style={styles.actionIcon}>🚪</Text>
             <View style={styles.actionContent}>
               <Text style={[styles.actionTitle, styles.logoutText]}>Logout</Text>

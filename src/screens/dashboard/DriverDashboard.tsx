@@ -31,8 +31,9 @@ export default function DriverDashboard({ navigation, userData, onLogout }: Driv
     completed: 0,
   });
 
-  const driverId = userData?.staff?.staff_id || userData?.user?.id || 0;
-  const driverName = userData?.staff?.name || 'Driver';
+ // Robust data extraction (prioritize flat structure, fallback to nested)
+const driverId = userData?.id || userData?.staff?.staff_id || userData?.user?.id || 0;
+const driverName = userData?.name || userData?.staff?.name || 'Driver';
 
   useEffect(() => {
     loadDashboardData();

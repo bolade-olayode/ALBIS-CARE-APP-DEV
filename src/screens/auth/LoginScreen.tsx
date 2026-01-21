@@ -13,7 +13,7 @@ import {
   Platform,
   Image,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons'; // Added Icon Import
+import { Ionicons } from '@expo/vector-icons'; 
 import { authApi } from '../../services/api/authApi';
 
 interface LoginScreenProps {
@@ -25,12 +25,9 @@ export default function LoginScreen({ navigation, onLogin }: LoginScreenProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  
-  // New state for toggling password visibility
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
   const handleLogin = async () => {
-    // Validation
     if (!email || !password) {
       Alert.alert('Error', 'Please enter email and password');
       return;
@@ -39,18 +36,16 @@ export default function LoginScreen({ navigation, onLogin }: LoginScreenProps) {
     setLoading(true);
 
     try {
+      // 1. CALL API
       const response = await authApi.login(email, password);
 
-      if (response.success) {
-        // Pass token and user data to parent
-        if (onLogin) {
-          onLogin(response.data.token, response.data);
-        }
-      } else {
-        Alert.alert('Login Failed', response.message || 'Invalid credentials');
+      // 2. HANDLE SUCCESS (No more guessing || here)
+      if (response.success && onLogin) {
+        onLogin(response.token, response.user);
       }
+      
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Something went wrong');
+      Alert.alert('Login Failed', error.message || 'Invalid credentials');
     } finally {
       setLoading(false);
     }
@@ -87,7 +82,7 @@ export default function LoginScreen({ navigation, onLogin }: LoginScreenProps) {
           />
         </View>
 
-        {/* Password Input (Updated with Eye Icon) */}
+        {/* Password Input */}
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Password</Text>
           <View style={styles.passwordContainer}>
@@ -96,7 +91,7 @@ export default function LoginScreen({ navigation, onLogin }: LoginScreenProps) {
               placeholder="Enter your password"
               value={password}
               onChangeText={setPassword}
-              secureTextEntry={!isPasswordVisible} // Toggles based on state
+              secureTextEntry={!isPasswordVisible}
               editable={!loading}
               autoCapitalize="none"
             />
@@ -129,8 +124,8 @@ export default function LoginScreen({ navigation, onLogin }: LoginScreenProps) {
         {/* Test Credentials Info */}
         <View style={styles.testInfo}>
           <Text style={styles.testInfoText}>Test Account:</Text>
-          <Text style={styles.testInfoText}>Email: admin@albiscare.co.uk</Text>
-          <Text style={styles.testInfoText}>Password: password</Text>
+          <Text style={styles.testInfoText}>Email: family_final@test.com</Text>
+          <Text style={styles.testInfoText}>Password: 123456</Text>
         </View>
       </View>
     </KeyboardAvoidingView>
@@ -177,7 +172,6 @@ const styles = StyleSheet.create({
     color: '#334155',
     marginBottom: 8,
   },
-  // Standard input style (used for Email)
   input: {
     backgroundColor: '#fff',
     borderWidth: 1,
@@ -188,7 +182,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#1e293b',
   },
-  // Container for Password Input + Icon
   passwordContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -196,9 +189,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e2e8f0',
     borderRadius: 8,
-    paddingRight: 12, // Space for the icon
+    paddingRight: 12,
   },
-  // Input inside the password container
   passwordInput: {
     flex: 1,
     paddingHorizontal: 16,

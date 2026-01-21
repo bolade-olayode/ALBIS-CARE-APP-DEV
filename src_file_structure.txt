@@ -1,0 +1,80 @@
+Folder PATH listing
+Volume serial number is 8483-B2EC
+C:\ALBIS-CARE-APP\MY-APP\SRC
++---components
+|       FormScrollView.tsx
+|       index.ts
+|       ScreenWrapper.tsx
+|       
++---config
+|       api.ts
+|       OLd_firebase.ts.backup
+|       
++---navigation
+|       AppNavigator.tsx
+|       
++---screens
+|   +---admin
+|   |       AnalyticsScreen.tsx
+|   |       
+|   +---auth
+|   |       LoginScreen.tsx
+|   |       
+|   +---clients
+|   |       AddClientScreen.tsx
+|   |       ClientDetailScreen.tsx
+|   |       ClientListScreen.tsx
+|   |       EditClientScreen.tsx
+|   |       
+|   +---dashboard
+|   |       AdminDashboard.tsx
+|   |       DriverDashboard.tsx
+|   |       RelativeDashboard.tsx
+|   |       StaffDashboard.tsx
+|   |       
+|   +---logs
+|   |       AddCareLogScreen.tsx
+|   |       CareLogDetailScreen.tsx
+|   |       CareLogListScreen.tsx
+|   |       EditCareLogScreen.tsx
+|   |       
+|   +---relative
+|   |       RelativeDashboardScreen.tsx
+|   |       
+|   +---staff
+|   |       AddStaffScreen.tsx
+|   |       EditStaffScreen.tsx
+|   |       StaffDetailScreen.tsx
+|   |       StaffListScreen.tsx
+|   |       test.tsx
+|   |       
+|   +---transport
+|   |       TransportExecutionScreen.tsx
+|   |       TransportListScreen.tsx
+|   |       
+|   \---visits
+|           EditVisitScreen.tsx
+|           ScheduleVisitScreen.tsx
+|           VisitDetailScreen.tsx
+|           VisitExecutionScreen.tsx
+|           VisitListScreen.tsx
+|           
++---services
+|   |   authService.ts
+|   |   
+|   \---api
+|           apiClient.ts
+|           authApi.ts
+|           careLogApi.ts
+|           clientApi.ts
+|           staffApi.ts
+|           transportApi.ts
+|           visitApi.ts
+|           
++---types
+|       index.ts
+|       user.types.ts
+|       
+\---utils
+        dateFormatter.ts
+        

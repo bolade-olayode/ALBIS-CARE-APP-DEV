@@ -22,11 +22,22 @@ interface ClientDetailScreenProps {
 export default function ClientDetailScreen({ route, navigation }: ClientDetailScreenProps) {
   const { clientId } = route.params;
   const [client, setClient] = useState<any | null>(null);
+  const [relatives, setRelatives] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingRelatives, setLoadingRelatives] = useState(true);
 
   useEffect(() => {
     loadClientDetails();
+    loadRelatives();
   }, []);
+
+  // Reload relatives when screen comes into focus
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadRelatives();
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const loadClientDetails = async () => {
     try {
@@ -45,15 +56,29 @@ export default function ClientDetailScreen({ route, navigation }: ClientDetailSc
     }
   };
 
+  const loadRelatives = async () => {
+    try {
+      setLoadingRelatives(true);
+      // Call the API to get relatives for this client
+      const response = await fetch(`https://albiscare.co.uk/api/v1/relative/list.php?client_id=${clientId}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setRelatives(data.data?.relatives || []);
+      }
+    } catch (error) {
+      console.error('Error loading relatives:', error);
+    } finally {
+      setLoadingRelatives(false);
+    }
+  };
+
   const handleDelete = () => {
     Alert.alert(
       'Delete Client',
       `Are you sure you want to delete ${client?.cFName} ${client?.cLName}? This action cannot be undone.`,
       [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
+        { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
           style: 'destructive',
@@ -62,16 +87,9 @@ export default function ClientDetailScreen({ route, navigation }: ClientDetailSc
               const response = await clientApi.deleteClient(clientId);
               
               if (response.success) {
-                Alert.alert(
-                  'Success',
-                  'Client deleted successfully',
-                  [
-                    {
-                      text: 'OK',
-                      onPress: () => navigation.navigate('ClientList'),
-                    },
-                  ]
-                );
+                Alert.alert('Success', 'Client deleted successfully', [
+                  { text: 'OK', onPress: () => navigation.navigate('ClientList') },
+                ]);
               } else {
                 Alert.alert('Error', response.message || 'Failed to delete client');
               }
@@ -170,6 +188,81 @@ export default function ClientDetailScreen({ route, navigation }: ClientDetailSc
           <Text style={[styles.careLevelTextLarge, { color: careLevelBadge.textColor }]}>
             {careLevelBadge.label}
           </Text>
+        </View>
+
+        {/* FAMILY ACCESS SECTION - UPDATED */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>👨‍👩‍👧 Family Access</Text>
+          <Text style={styles.sectionDescription}>
+            Grant family members access to view care information and updates.
+          </Text>
+          
+          {/* Show existing relatives */}
+          {loadingRelatives ? (
+            <View style={styles.loadingRelativesContainer}>
+              <ActivityIndicator size="small" color="#2563eb" />
+              <Text style={styles.loadingRelativesText}>Loading family members...</Text>
+            </View>
+          ) : relatives.length > 0 ? (
+            <View style={styles.relativesListContainer}>
+              <Text style={styles.relativesListTitle}>
+                Current Family Members ({relatives.length})
+              </Text>
+              {relatives.map((relative, index) => (
+                <View key={index} style={styles.relativeCard}>
+                  <View style={styles.relativeInfo}>
+                    <View style={styles.relativeAvatar}>
+                      <Text style={styles.relativeAvatarText}>
+                        {relative.rFName?.charAt(0)}{relative.rLName?.charAt(0)}
+                      </Text>
+                    </View>
+                    <View style={styles.relativeDetails}>
+                      <Text style={styles.relativeName}>
+                        {relative.rTitle} {relative.rFName} {relative.rLName}
+                      </Text>
+                      <Text style={styles.relativeRelationship}>
+                        {relative.relationship}
+                      </Text>
+                      <Text style={styles.relativeEmail}>
+                        ✉️ {relative.rEmail}
+                      </Text>
+                      {relative.is_primary_contact === 1 && (
+                        <View style={styles.primaryBadge}>
+                          <Text style={styles.primaryBadgeText}>⭐ Primary Contact</Text>
+                        </View>
+                      )}
+                      {relative.is_emergency_contact === 1 && (
+                        <View style={styles.emergencyBadge}>
+                          <Text style={styles.emergencyBadgeText}>🚨 Emergency Contact</Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.noRelativesContainer}>
+              <Text style={styles.noRelativesIcon}>👥</Text>
+              <Text style={styles.noRelativesText}>
+                No family members have access yet
+              </Text>
+            </View>
+          )}
+          
+          {/* Add Family Member Button */}
+          <TouchableOpacity
+            style={styles.grantAccessButton}
+            onPress={() => navigation.navigate('GrantFamilyAccess', { 
+              clientId: client.cNo,
+              clientName: `${client.cFName} ${client.cLName}`
+            })}
+          >
+            <Text style={styles.grantAccessIcon}>➕</Text>
+            <Text style={styles.grantAccessText}>
+              {relatives.length > 0 ? 'Add Another Family Member' : 'Grant Family Access'}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Contact Information */}
@@ -424,7 +517,137 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#1e293b',
+    marginBottom: 12,
+  },
+  sectionDescription: {
+    fontSize: 14,
+    color: '#64748b',
     marginBottom: 16,
+    lineHeight: 20,
+  },
+  loadingRelativesContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+  },
+  loadingRelativesText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#64748b',
+  },
+  relativesListContainer: {
+    marginBottom: 16,
+  },
+  relativesListTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#475569',
+    marginBottom: 12,
+  },
+  relativeCard: {
+    backgroundColor: '#f8fafc',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#2563eb',
+  },
+  relativeInfo: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  relativeAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#2563eb',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  relativeAvatarText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  relativeDetails: {
+    flex: 1,
+  },
+  relativeName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1e293b',
+    marginBottom: 4,
+  },
+  relativeRelationship: {
+    fontSize: 14,
+    color: '#64748b',
+    marginBottom: 4,
+  },
+  relativeEmail: {
+    fontSize: 13,
+    color: '#64748b',
+    marginBottom: 6,
+  },
+  primaryBadge: {
+    backgroundColor: '#fef3c7',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+    marginTop: 4,
+  },
+  primaryBadgeText: {
+    fontSize: 11,
+    color: '#92400e',
+    fontWeight: '600',
+  },
+  emergencyBadge: {
+    backgroundColor: '#fee2e2',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+    marginTop: 4,
+  },
+  emergencyBadgeText: {
+    fontSize: 11,
+    color: '#991b1b',
+    fontWeight: '600',
+  },
+  noRelativesContainer: {
+    alignItems: 'center',
+    paddingVertical: 24,
+  },
+  noRelativesIcon: {
+    fontSize: 48,
+    marginBottom: 8,
+  },
+  noRelativesText: {
+    fontSize: 14,
+    color: '#64748b',
+    textAlign: 'center',
+  },
+  grantAccessButton: {
+    backgroundColor: '#2563eb',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  grantAccessIcon: {
+    fontSize: 18,
+    marginRight: 8,
+    color: 'white',
+  },
+  grantAccessText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
   },
   infoRow: {
     flexDirection: 'row',
