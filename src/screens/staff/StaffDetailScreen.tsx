@@ -13,6 +13,7 @@ import {
 import { ScreenWrapper } from '../../components';
 import { staffApi } from '../../services/api/staffApi';
 import { formatDate } from '../../utils/dateFormatter';
+import { usePermissions } from '../../hooks/usePermissions';
 
 interface StaffDetailScreenProps {
   route: any;
@@ -20,14 +21,22 @@ interface StaffDetailScreenProps {
 }
 
 export default function StaffDetailScreen({ route, navigation }: StaffDetailScreenProps) {
-  const { staffId } = route.params; 
-  
+  const { staffId } = route.params;
+
   const [staff, setStaff] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Permission checks
+  const { canEdit, canDelete, isRelative } = usePermissions();
+  const isReadOnly = route.params?.isReadOnly || isRelative();
+
+  // Load staff details when screen comes into focus (handles both initial load and refresh)
   useEffect(() => {
-    loadStaffDetails();
-  }, []);
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadStaffDetails();
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const loadStaffDetails = async () => {
     try {
@@ -140,13 +149,17 @@ export default function StaffDetailScreen({ route, navigation }: StaffDetailScre
           <Text style={styles.headerBackText}>← Back</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Staff Details</Text>
-        <TouchableOpacity
-          style={styles.editButton}
-          // FIXED: Using staffId from route params instead of staff object
-          onPress={() => navigation.navigate('EditStaff', { staffId: staffId })}
-        >
-          <Text style={styles.editButtonText}>Edit</Text>
-        </TouchableOpacity>
+        {!isReadOnly && canEdit('staff') ? (
+          <TouchableOpacity
+            style={styles.editButton}
+            // FIXED: Using staffId from route params instead of staff object
+            onPress={() => navigation.navigate('EditStaff', { staffId: staffId })}
+          >
+            <Text style={styles.editButtonText}>Edit</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 60 }} />
+        )}
       </View>
 
       <ScrollView 
@@ -300,14 +313,16 @@ export default function StaffDetailScreen({ route, navigation }: StaffDetailScre
         )}
 
         {/* Delete Button */}
-        <View style={styles.section}>
-          <TouchableOpacity
-            style={styles.deleteButton}
-            onPress={handleDelete}
-          >
-            <Text style={styles.deleteButtonText}>🗑️ Delete Staff Member</Text>
-          </TouchableOpacity>
-        </View>
+        {!isReadOnly && canDelete('staff') && (
+          <View style={styles.section}>
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={handleDelete}
+            >
+              <Text style={styles.deleteButtonText}>🗑️ Delete Staff Member</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
     </ScreenWrapper>
   );
@@ -445,7 +460,7 @@ const styles = StyleSheet.create({
   },
   infoValue: {
     fontSize: 14,
-    color: '#1e293b',
+    color: '#1e293b',   
     flex: 1,
   },
   backButton: {

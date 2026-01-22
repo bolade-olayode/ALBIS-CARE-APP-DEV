@@ -44,11 +44,7 @@ export const authApi = {
         throw new Error('Login successful but no token received.');
       }
 
-      // 4. Store Session
-      await AsyncStorage.setItem('authToken', token);
-      await AsyncStorage.setItem('userData', JSON.stringify(user));
-
-      // 5. Return Clean Object
+      // 4. Return Clean Object (AppNavigator will handle storage)
       return {
         success: true,
         token: token,

@@ -18,14 +18,24 @@ apiClient.interceptors.request.use(
   async (config) => {
     // Get token from storage
     const token = await AsyncStorage.getItem('authToken');
-    
+
+    console.log('=== API CLIENT REQUEST ===');
+    console.log('URL:', config.url);
+    console.log('Token exists:', !!token);
+    console.log('Token value:', token ? `${token.substring(0, 20)}...` : 'NULL');
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.log('Authorization header set:', config.headers.Authorization?.substring(0, 30) + '...');
+    } else {
+      console.log('WARNING: No token found in AsyncStorage!');
     }
-    
+    console.log('==========================');
+
     return config;
   },
   (error) => {
+    console.error('API Client Request Error:', error);
     return Promise.reject(error);
   }
 );

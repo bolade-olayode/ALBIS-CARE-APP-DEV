@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { ScreenWrapper } from '../../components'; // Added Wrapper
 import { clientApi, Client } from '../../services/api/clientApi';
+import { usePermissions } from '../../hooks/usePermissions';
 
 interface ClientListScreenProps {
   navigation: any;
@@ -24,6 +25,9 @@ export default function ClientListScreen({ navigation }: ClientListScreenProps) 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Permission checks
+  const { canCreate } = usePermissions();
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
@@ -181,12 +185,16 @@ export default function ClientListScreen({ navigation }: ClientListScreenProps) 
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Clients</Text>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => navigation.navigate('AddClient')}
-        >
-          <Text style={styles.addButtonText}>+ Add</Text>
-        </TouchableOpacity>
+        {canCreate('clients') ? (
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => navigation.navigate('AddClient')}
+          >
+            <Text style={styles.addButtonText}>+ Add</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 70 }} />
+        )}
       </View>
 
       {/* Search Bar with Icon */}

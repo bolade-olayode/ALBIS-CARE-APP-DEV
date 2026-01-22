@@ -39,12 +39,23 @@ export default function LoginScreen({ navigation, onLogin }: LoginScreenProps) {
       // 1. CALL API
       const response = await authApi.login(email, password);
 
+      console.log('=== LOGIN SCREEN DEBUG ===');
+      console.log('Login response:', JSON.stringify(response, null, 2));
+      console.log('Token:', response.token ? `${response.token.substring(0, 20)}...` : 'MISSING');
+      console.log('User data:', JSON.stringify(response.user, null, 2));
+      console.log('==========================');
+
       // 2. HANDLE SUCCESS (No more guessing || here)
       if (response.success && onLogin) {
+        console.log('Calling onLogin with token and user data...');
         onLogin(response.token, response.user);
+      } else {
+        console.error('Login failed or onLogin callback missing');
+        Alert.alert('Error', 'Login response invalid');
       }
-      
+
     } catch (error: any) {
+      console.error('Login error:', error);
       Alert.alert('Login Failed', error.message || 'Invalid credentials');
     } finally {
       setLoading(false);

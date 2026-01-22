@@ -146,7 +146,7 @@ export default function StaffDashboard({ navigation, userData, onLogout }: Staff
           </View>
           <TouchableOpacity
             style={styles.profileButton}
-            onPress={() => navigation?.navigate('Profile')}
+            onPress={() => Alert.alert('Profile', 'Profile management coming soon!')}
           >
             <Text style={styles.profileIcon}>👤</Text>
           </TouchableOpacity>
@@ -253,7 +253,7 @@ export default function StaffDashboard({ navigation, userData, onLogout }: Staff
              {upcomingVisits.length > 5 && (
               <TouchableOpacity
                 style={styles.viewAllButton}
-                onPress={() => navigation?.navigate('MySchedule')}
+                onPress={() => navigation?.navigate('VisitList', { staff_id: staffId })}
               >
                 <Text style={styles.viewAllText}>View All Upcoming Visits →</Text>
               </TouchableOpacity>
@@ -264,18 +264,18 @@ export default function StaffDashboard({ navigation, userData, onLogout }: Staff
         {/* Quick Actions */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>⚡ Quick Actions</Text>
-          <TouchableOpacity style={styles.actionCard} onPress={() => navigation?.navigate('MyCareLogs')}>
+          <TouchableOpacity style={styles.actionCard} onPress={() => navigation?.navigate('CareLogList', { staff_id: staffId })}>
             <Text style={styles.actionIcon}>📋</Text>
             <View style={styles.actionContent}>
               <Text style={styles.actionTitle}>My Care Logs</Text>
-              <Text style={styles.actionDescription}>View your completed care logs</Text>
+              <Text style={styles.actionDescription}>View my completed care logs</Text>
             </View>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionCard} onPress={() => navigation?.navigate('MySchedule')}>
+          <TouchableOpacity style={styles.actionCard} onPress={() => navigation?.navigate('VisitList', { staff_id: staffId })}>
             <Text style={styles.actionIcon}>📅</Text>
             <View style={styles.actionContent}>
-              <Text style={styles.actionTitle}>Full Schedule</Text>
-              <Text style={styles.actionDescription}>View all your assigned visits</Text>
+              <Text style={styles.actionTitle}>My Schedule</Text>
+              <Text style={styles.actionDescription}>View my scheduled visits</Text>
             </View>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.actionCard, styles.logoutCard]} onPress={handleLogout}>
@@ -306,7 +306,7 @@ const styles = StyleSheet.create({
     color: '#64748b',
   },
   header: {
-    backgroundColor: '#2563eb',
+    backgroundColor: '#10b981',
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 30,
@@ -316,7 +316,7 @@ const styles = StyleSheet.create({
   },
   greeting: {
     fontSize: 16,
-    color: '#93c5fd',
+    color: '#a7f3d0',
   },
   userName: {
     fontSize: 24,

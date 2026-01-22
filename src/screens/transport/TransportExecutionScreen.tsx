@@ -93,7 +93,9 @@ export default function TransportExecutionScreen({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'completed', end_mileage: parseInt(formData.end_mileage), actual_dropoff_time: new Date().toISOString(), notes: formData.notes })
       });
-      navigation.goBack();
+      Alert.alert('Success', 'Transport completed successfully!', [
+        { text: 'OK', onPress: () => navigation.navigate('Dashboard') }
+      ]);
     } catch (e) { Alert.alert('Error', 'Failed to complete'); } finally { setSaving(false); }
   };
 
@@ -154,15 +156,29 @@ export default function TransportExecutionScreen({
         </View>
 
         {/* Action Area */}
-        {!started ? (
+        {transport.status === 'completed' ? (
+          <View style={styles.section}>
+            <View style={[styles.progressBox, { backgroundColor: '#d1fae5' }]}>
+              <Text style={[styles.progTxt, { color: '#065f46' }]}>
+                ✓ Transport Completed
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.btnComplete, { backgroundColor: '#2563eb' }]}
+              onPress={() => navigation.navigate('Dashboard')}
+            >
+              <Text style={styles.btnTxt}>Back to Dashboard</Text>
+            </TouchableOpacity>
+          </View>
+        ) : !started ? (
           <View style={styles.section}>
             <Text style={styles.secTitle}>Start Transport</Text>
-            <TextInput 
-              style={styles.input} 
-              placeholder="Start Mileage" 
-              keyboardType="numeric" 
-              value={formData.start_mileage} 
-              onChangeText={t => setFormData({ ...formData, start_mileage: t })} 
+            <TextInput
+              style={styles.input}
+              placeholder="Start Mileage"
+              keyboardType="numeric"
+              value={formData.start_mileage}
+              onChangeText={t => setFormData({ ...formData, start_mileage: t })}
             />
             <TouchableOpacity style={styles.btnStart} onPress={handleStart}>
               <Text style={styles.btnTxt}>Start Journey</Text>
@@ -402,4 +418,4 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 14,
   },
-});
+}); 

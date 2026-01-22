@@ -13,6 +13,7 @@ import {
 import { ScreenWrapper } from '../../components';
 import { careLogApi, CareLog } from '../../services/api/careLogApi';
 import { formatDate } from '../../utils/dateFormatter'; // Import Helper
+import { usePermissions } from '../../hooks/usePermissions';
 
 interface CareLogDetailScreenProps {
   route: any;
@@ -24,9 +25,17 @@ export default function CareLogDetailScreen({ route, navigation }: CareLogDetail
   const [log, setLog] = useState<CareLog | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Permission checks
+  const { canEdit, canDelete, isRelative } = usePermissions();
+  const isReadOnly = route.params?.isReadOnly || isRelative();
+
+  // Load log details when screen comes into focus (handles both initial load and refresh)
   useEffect(() => {
-    loadLogDetails();
-  }, []);
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadLogDetails();
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const loadLogDetails = async () => {
     try {
@@ -129,12 +138,16 @@ export default function CareLogDetailScreen({ route, navigation }: CareLogDetail
           <Text style={styles.headerBackText}>← Back</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Care Log Details</Text>
-        <TouchableOpacity
-          style={styles.editButton}
-          onPress={() => navigation.navigate('EditCareLog', { logId: log.log_id })}
-        >
-          <Text style={styles.editButtonText}>Edit</Text>
-        </TouchableOpacity>
+        {!isReadOnly && canEdit('logs') ? (
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={() => navigation.navigate('EditCareLog', { logId: log.log_id })}
+          >
+            <Text style={styles.editButtonText}>Edit</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 60 }} />
+        )}
       </View>
 
       <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 40 }}>
@@ -169,7 +182,7 @@ export default function CareLogDetailScreen({ route, navigation }: CareLogDetail
             </View>
             <View style={styles.dateTimeItem}>
               <Text style={styles.dateTimeLabel}>⏱️ Duration</Text>
-              <Text style={styles.dateTimeValue}>{log.duration_minutes || 0} mins</Text>
+              <Text style={styles.dateTimeValue}>{String(log.duration_minutes || 0)} mins</Text>
             </View>
           </View>
         </View>
@@ -179,31 +192,31 @@ export default function CareLogDetailScreen({ route, navigation }: CareLogDetail
           <Text style={styles.sectionTitle}>Activities Performed</Text>
 
           <View style={styles.activitiesGrid}>
-            {log.personal_care === 1 && (
+            {log.personal_care && (
               <View style={styles.activityCard}>
                 <Text style={styles.activityIcon}>🛁</Text>
                 <Text style={styles.activityLabel}>Personal Care</Text>
               </View>
             )}
-            {log.medication === 1 && (
+            {log.medication && (
               <View style={styles.activityCard}>
                 <Text style={styles.activityIcon}>💊</Text>
                 <Text style={styles.activityLabel}>Medication</Text>
               </View>
             )}
-            {log.meal_preparation === 1 && (
+            {log.meal_preparation && (
               <View style={styles.activityCard}>
                 <Text style={styles.activityIcon}>🍽️</Text>
                 <Text style={styles.activityLabel}>Meal Prep</Text>
               </View>
             )}
-            {log.housekeeping === 1 && (
+            {log.housekeeping && (
               <View style={styles.activityCard}>
                 <Text style={styles.activityIcon}>🧹</Text>
                 <Text style={styles.activityLabel}>Housekeeping</Text>
               </View>
             )}
-            {log.companionship === 1 && (
+            {log.companionship && (
               <View style={styles.activityCard}>
                 <Text style={styles.activityIcon}>💬</Text>
                 <Text style={styles.activityLabel}>Companionship</Text>
@@ -228,21 +241,21 @@ export default function CareLogDetailScreen({ route, navigation }: CareLogDetail
                 <View style={styles.vitalCard}>
                   <Text style={styles.vitalIcon}>🌡️</Text>
                   <Text style={styles.vitalLabel}>Temperature</Text>
-                  <Text style={styles.vitalValue}>{log.temperature}°C</Text>
+                  <Text style={styles.vitalValue}>{String(log.temperature)}°C</Text>
                 </View>
               )}
               {log.blood_pressure && (
                 <View style={styles.vitalCard}>
                   <Text style={styles.vitalIcon}>💉</Text>
                   <Text style={styles.vitalLabel}>Blood Pressure</Text>
-                  <Text style={styles.vitalValue}>{log.blood_pressure}</Text>
+                  <Text style={styles.vitalValue}>{String(log.blood_pressure)}</Text>
                 </View>
               )}
               {log.heart_rate && (
                 <View style={styles.vitalCard}>
                   <Text style={styles.vitalIcon}>❤️</Text>
                   <Text style={styles.vitalLabel}>Heart Rate</Text>
-                  <Text style={styles.vitalValue}>{log.heart_rate} bpm</Text>
+                  <Text style={styles.vitalValue}>{String(log.heart_rate)} bpm</Text>
                 </View>
               )}
             </View>
@@ -258,7 +271,7 @@ export default function CareLogDetailScreen({ route, navigation }: CareLogDetail
               <Text style={styles.moodEmoji}>{getMoodEmoji(log.client_mood)}</Text>
               <View style={styles.moodInfo}>
                 <Text style={styles.moodLabel}>Mood</Text>
-                <Text style={styles.moodValue}>{log.client_mood}</Text>
+                <Text style={styles.moodValue}>{String(log.client_mood)}</Text>
               </View>
             </View>
           )}
@@ -283,7 +296,7 @@ export default function CareLogDetailScreen({ route, navigation }: CareLogDetail
         </View>
 
         {/* Follow-up */}
-        {log.follow_up_required === 1 && (
+        {log.follow_up_required && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>⚠️ Follow-up Required</Text>
 
@@ -296,11 +309,13 @@ export default function CareLogDetailScreen({ route, navigation }: CareLogDetail
         )}
 
         {/* Delete Button */}
-        <View style={styles.section}>
-          <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-            <Text style={styles.deleteButtonText}>🗑️ Delete Care Log</Text>
-          </TouchableOpacity>
-        </View>
+        {!isReadOnly && canDelete('logs') && (
+          <View style={styles.section}>
+            <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
+              <Text style={styles.deleteButtonText}>🗑️ Delete Care Log</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
     </ScreenWrapper>
   );

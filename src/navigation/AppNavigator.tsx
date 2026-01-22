@@ -8,6 +8,7 @@ import { ActivityIndicator, View } from 'react-native';
 
 import LoginScreen from '../screens/auth/LoginScreen';
 import AdminDashboard from '../screens/dashboard/AdminDashboard';
+import CareManagerDashboard from '../screens/dashboard/CareManagerDashboard';
 import StaffDashboard from '../screens/dashboard/StaffDashboard';
 import DriverDashboard from '../screens/dashboard/DriverDashboard';
 import RelativeDashboard from '../screens/dashboard/RelativeDashboard';
@@ -35,9 +36,13 @@ import EditVisitScreen from '../screens/visits/EditVisitScreen';
 import VisitExecutionScreen from '../screens/visits/VisitExecutionScreen';
 
 import TransportListScreen from '../screens/transport/TransportListScreen';
+import TransportDetailScreen from '../screens/transport/TransportDetailScreen';
 import TransportExecutionScreen from '../screens/transport/TransportExecutionScreen';
 
 import AnalyticsScreen from '../screens/admin/AnalyticsScreen';
+import RelativeDetailScreen from '../screens/clients/RelativeDetailScreen';
+import EditRelativeScreen from '../screens/clients/EditRelativeScreen';
+
 
 const Stack = createNativeStackNavigator();
 
@@ -67,10 +72,25 @@ export default function AppNavigator() {
   };
 
   const handleLogin = async (token: string, data: any) => {
+    console.log('=== HANDLE LOGIN DEBUG ===');
+    console.log('Token received:', token ? `${token.substring(0, 20)}...` : 'NULL');
+    console.log('User data received:', JSON.stringify(data, null, 2));
+
     setUserToken(token);
     setUserData(data);
+
+    // Store in AsyncStorage
     await AsyncStorage.setItem('authToken', token);
     await AsyncStorage.setItem('userData', JSON.stringify(data));
+
+    // Verify storage
+    const storedToken = await AsyncStorage.getItem('authToken');
+    const storedData = await AsyncStorage.getItem('userData');
+
+    console.log('Token stored successfully:', !!storedToken);
+    console.log('User data stored successfully:', !!storedData);
+    console.log('Stored token matches:', storedToken === token);
+    console.log('==========================');
   };
 
   const handleLogout = async () => {
@@ -95,22 +115,45 @@ export default function AppNavigator() {
   const getDashboardComponent = () => {
     if (!userData) return LoginScreen;
 
-    const userType = userData.userType || userData.user?.userType || userData.role;
-    const rawRole = userData.role || userData.staff?.staff_role || userData.staff?.roleName || '';
-    const staffRole = rawRole.toLowerCase();
+    // DEBUG: Log userData structure to help diagnose routing issues
+    console.log('=== DASHBOARD ROUTING DEBUG ===');
+    console.log('Full userData:', JSON.stringify(userData, null, 2));
+    console.log('effective_role:', userData.effective_role);
+    console.log('userType:', userData.userType);
+    console.log('role:', userData.role);
+    console.log('user.role:', userData.user?.role);
+    console.log('==============================');
 
-    if (staffRole.includes('manager') || staffRole === 'care manager') {
-        return AdminDashboard; 
+    // Use effective_role from permission system (preferred)
+    const effectiveRole = userData.effective_role || userData.user?.role || userData.userType || userData.role;
+
+    console.log('Final effectiveRole:', effectiveRole);
+
+    // Handle role-based dashboard routing
+    if (effectiveRole === 'super_admin' || effectiveRole === 'admin') {
+      console.log('Routing to: AdminDashboard');
+      return AdminDashboard;
     }
 
-    if (userType === 'relative') return RelativeDashboard;
-    if (userType === 'admin') return AdminDashboard;
-    
-    if (userType === 'staff') {
-      if (staffRole.includes('driver')) return DriverDashboard;
-      return StaffDashboard;
+    if (effectiveRole === 'care_manager') {
+      console.log('Routing to: CareManagerDashboard');
+      return CareManagerDashboard;
     }
 
+    if (effectiveRole === 'relative') {
+      console.log('Routing to: RelativeDashboard');
+      return RelativeDashboard;
+    }
+
+    // Check for driver (could be staff with driver role)
+    const staffRole = userData.staff?.staff_role?.toLowerCase() || '';
+    if (staffRole.includes('driver') || effectiveRole === 'driver') {
+      console.log('Routing to: DriverDashboard');
+      return DriverDashboard;
+    }
+
+    // Default to staff dashboard
+    console.log('Routing to: StaffDashboard (default)');
     return StaffDashboard;
   };
 
@@ -160,6 +203,7 @@ export default function AppNavigator() {
             <Stack.Screen name="EditVisit" component={EditVisitScreen} />
             <Stack.Screen name="VisitExecution" component={VisitExecutionScreen} />
             <Stack.Screen name="TransportList" component={TransportListScreen} />
+            <Stack.Screen name="TransportDetail" component={TransportDetailScreen} />
             <Stack.Screen name="TransportExecution" component={TransportExecutionScreen} />
             <Stack.Screen name="StaffDashboard">
               {(props) => <StaffDashboard {...props} userData={userData} onLogout={handleLogout} />}
@@ -170,6 +214,8 @@ export default function AppNavigator() {
             <Stack.Screen name="RelativeDashboard">
               {(props) => <RelativeDashboard {...props} userData={userData} onLogout={handleLogout} />}
             </Stack.Screen>
+            <Stack.Screen name="RelativeDetail" component={RelativeDetailScreen} />
+            <Stack.Screen name="EditRelative" component={EditRelativeScreen} />
           </>
         )}
       </Stack.Navigator>

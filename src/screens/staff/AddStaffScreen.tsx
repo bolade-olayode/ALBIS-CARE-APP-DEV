@@ -96,7 +96,7 @@ export default function AddStaffScreen({ navigation }: AddStaffScreenProps) {
           [
             {
               text: 'OK',
-              onPress: () => navigation.navigate('StaffList', { refresh: Date.now() }),
+              onPress: () => navigation.goBack(),
             },
           ]
         );

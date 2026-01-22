@@ -125,7 +125,7 @@ export default function AddClientScreen({ navigation }: AddClientScreenProps) {
           [
             {
               text: 'OK',
-              onPress: () => navigation.navigate('ClientList', { refresh: Date.now() }),
+              onPress: () => navigation.goBack(),
             },
           ]
         );

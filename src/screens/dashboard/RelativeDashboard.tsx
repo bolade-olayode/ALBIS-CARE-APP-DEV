@@ -14,9 +14,15 @@ import {
 interface RelativeDashboardProps {
   userData: any;
   onLogout: () => void;
+  navigation: any;
 }
 
-export default function RelativeDashboard({ userData, onLogout }: RelativeDashboardProps) {
+export default function RelativeDashboard({ userData, onLogout, navigation }: RelativeDashboardProps) {
+  // DEBUG: Log userData to diagnose issues
+  console.log('=== RELATIVE DASHBOARD DEBUG ===');
+  console.log('Full userData:', JSON.stringify(userData, null, 2));
+  console.log('================================');
+
   const handleLogout = () => {
     Alert.alert(
       'Logout',
@@ -28,7 +34,13 @@ export default function RelativeDashboard({ userData, onLogout }: RelativeDashbo
     );
   };
 
-  const user = userData.user;
+  const user = userData.user || userData;
+  const relativeName = userData.name || userData.relative?.name || userData.user?.name || user?.name || 'Family Member';
+  // Get the linked care user ID (client_id) that this relative is connected to
+  const linkedClientId = userData.client_id || userData.relative?.client_id || userData.cNo || user?.client_id;
+
+  console.log('Relative Name:', relativeName);
+  console.log('Linked Client ID:', linkedClientId);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -37,7 +49,7 @@ export default function RelativeDashboard({ userData, onLogout }: RelativeDashbo
         <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>Welcome,</Text>
-            <Text style={styles.name}>Family Portal</Text>
+            <Text style={styles.name}>{relativeName}</Text>
             <Text style={styles.email}>{user?.email}</Text>
           </View>
           <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
@@ -48,34 +60,39 @@ export default function RelativeDashboard({ userData, onLogout }: RelativeDashbo
         {/* Care Recipient Info */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Your Loved One</Text>
-          <View style={styles.infoCard}>
+          <TouchableOpacity
+            style={styles.infoCard}
+            onPress={() => {
+              if (linkedClientId) {
+                navigation.navigate('ClientDetail', { clientId: linkedClientId, isReadOnly: true });
+              } else {
+                Alert.alert('Notice', 'No linked care recipient found');
+              }
+            }}
+          >
             <Text style={styles.infoTitle}>Care Information</Text>
             <Text style={styles.infoText}>View care details and updates</Text>
-          </View>
+          </TouchableOpacity>
         </View>
 
         {/* Quick Actions */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
-          
-          <TouchableOpacity style={styles.actionCard}>
+
+          <TouchableOpacity
+            style={styles.actionCard}
+            onPress={() => navigation.navigate('VisitList', { client_id: linkedClientId })}
+          >
             <Text style={styles.actionTitle}>📅 Recent Visits</Text>
             <Text style={styles.actionDescription}>View care visit history</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionCard}>
-            <Text style={styles.actionTitle}>📋 Care Plan</Text>
-            <Text style={styles.actionDescription}>Review current care plan</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionCard}>
-            <Text style={styles.actionTitle}>💬 Messages</Text>
-            <Text style={styles.actionDescription}>Contact care team</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionCard}>
-            <Text style={styles.actionTitle}>📊 Reports</Text>
-            <Text style={styles.actionDescription}>View care reports</Text>
+          <TouchableOpacity
+            style={styles.actionCard}
+            onPress={() => navigation.navigate('CareLogList', { client_id: linkedClientId })}
+          >
+            <Text style={styles.actionTitle}>📋 Care Logs</Text>
+            <Text style={styles.actionDescription}>Review care visit logs</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -92,7 +109,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    backgroundColor: '#2563eb',
+    backgroundColor: '#8b5cf6',
     padding: 24,
     flexDirection: 'row',
     justifyContent: 'space-between',

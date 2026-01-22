@@ -13,8 +13,9 @@ import {
   Alert,
 } from 'react-native';
 // Added ScreenWrapper to imports
-import { ScreenWrapper } from '../../components'; 
+import { ScreenWrapper } from '../../components';
 import { staffApi, Staff } from '../../services/api/staffApi';
+import { usePermissions } from '../../hooks/usePermissions';
 
 interface StaffListScreenProps {
   navigation: any;
@@ -39,6 +40,9 @@ export default function StaffListScreen({ navigation }: StaffListScreenProps) {
     3: true,
     4: true,
   });
+
+  // Permission checks
+  const { canCreate } = usePermissions();
 
   useEffect(() => {
     loadStaff();
@@ -171,12 +175,16 @@ export default function StaffListScreen({ navigation }: StaffListScreenProps) {
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Staff</Text>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => navigation.navigate('AddStaff')}
-        >
-          <Text style={styles.addButtonText}>+ Add</Text>
-        </TouchableOpacity>
+        {canCreate('staff') ? (
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => navigation.navigate('AddStaff')}
+          >
+            <Text style={styles.addButtonText}>+ Add</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 70 }} />
+        )}
       </View>
 
       {/* Search Bar */}

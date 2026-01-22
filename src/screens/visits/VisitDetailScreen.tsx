@@ -15,6 +15,7 @@ import { ScreenWrapper } from '../../components';
 import { visitApi } from '../../services/api/visitApi';
 import { formatDate } from '../../utils/dateFormatter';
 import { useFocusEffect } from '@react-navigation/native';
+import { usePermissions } from '../../hooks/usePermissions';
 
 interface VisitDetailScreenProps {
   route: any;
@@ -26,6 +27,10 @@ export default function VisitDetailScreen({ route, navigation }: VisitDetailScre
   const [visit, setVisit] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
+
+  // Permission checks
+  const { canEdit, canDelete, isRelative } = usePermissions();
+  const isReadOnly = route.params?.isReadOnly || isRelative();
 
   useFocusEffect(
     useCallback(() => {
@@ -133,12 +138,16 @@ export default function VisitDetailScreen({ route, navigation }: VisitDetailScre
           <Text style={styles.headerBackText}>← Back</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Visit Details</Text>
-        <TouchableOpacity
-          style={styles.editButton}
-          onPress={() => navigation.navigate('EditVisit', { visitId: visit.visit_id })}
-        >
-          <Text style={styles.editButtonText}>Edit</Text>
-        </TouchableOpacity>
+        {!isReadOnly && canEdit('visits') ? (
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={() => navigation.navigate('EditVisit', { visitId: visit.visit_id })}
+          >
+            <Text style={styles.editButtonText}>Edit</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 60 }} />
+        )}
       </View>
 
       <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 40 }}>
@@ -196,9 +205,18 @@ export default function VisitDetailScreen({ route, navigation }: VisitDetailScre
               {canViewTransportJob() ? (
                 <TouchableOpacity
                   style={styles.transportButton}
-                  onPress={() => navigation.navigate('TransportExecution', { transportId: visit.transport_id })}
+                  onPress={() => {
+                    // Navigate to detail screen if visit is completed, execution screen otherwise
+                    if (visit.status === 'completed' || visit.status === 'cancelled') {
+                      navigation.navigate('TransportDetail', { transportId: visit.transport_id });
+                    } else {
+                      navigation.navigate('TransportExecution', { transportId: visit.transport_id });
+                    }
+                  }}
                 >
-                  <Text style={styles.transportButtonText}>View Job Status / Start</Text>
+                  <Text style={styles.transportButtonText}>
+                    {visit.status === 'completed' || visit.status === 'cancelled' ? 'View Transport Details' : 'View Job Status / Start'}
+                  </Text>
                 </TouchableOpacity>
               ) : (
                 <View style={styles.passengerNote}>
@@ -211,21 +229,25 @@ export default function VisitDetailScreen({ route, navigation }: VisitDetailScre
           </View>
         )}
 
-        {/* Action Buttons */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Actions</Text>
-          <View style={styles.actionButtons}>
-            <TouchableOpacity
-              style={[styles.actionButton, styles.startButton]}
-              onPress={() => navigation.navigate('VisitExecution', { visitId: visit.visit_id })}
-            >
-              <Text style={styles.actionButtonText}>▶ Start Visit & Log</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-              <Text style={styles.deleteButtonText}>🗑️ Delete Visit</Text>
-            </TouchableOpacity>
+        {/* Action Buttons - Only show for users with edit/delete permissions */}
+        {!isReadOnly && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Actions</Text>
+            <View style={styles.actionButtons}>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.startButton]}
+                onPress={() => navigation.navigate('VisitExecution', { visitId: visit.visit_id })}
+              >
+                <Text style={styles.actionButtonText}>▶ Start Visit & Log</Text>
+              </TouchableOpacity>
+              {canDelete('visits') && (
+                <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
+                  <Text style={styles.deleteButtonText}>🗑️ Delete Visit</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
-        </View>
+        )}
       </ScrollView>
     </ScreenWrapper>
   );

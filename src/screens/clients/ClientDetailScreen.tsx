@@ -13,6 +13,7 @@ import {
 import { ScreenWrapper } from '../../components';
 import { clientApi } from '../../services/api/clientApi';
 import { formatDate } from '../../utils/dateFormatter';
+import { usePermissions } from '../../hooks/usePermissions';
 
 interface ClientDetailScreenProps {
   route: any;
@@ -26,14 +27,14 @@ export default function ClientDetailScreen({ route, navigation }: ClientDetailSc
   const [loading, setLoading] = useState(true);
   const [loadingRelatives, setLoadingRelatives] = useState(true);
 
-  useEffect(() => {
-    loadClientDetails();
-    loadRelatives();
-  }, []);
+  // Permission checks
+  const { canEdit, canDelete, isRelative } = usePermissions();
+  const isReadOnly = route.params?.isReadOnly || isRelative();
 
-  // Reload relatives when screen comes into focus
+  // Load client details and relatives when screen comes into focus (handles both initial load and refresh)
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
+      loadClientDetails();
       loadRelatives();
     });
     return unsubscribe;
@@ -59,12 +60,12 @@ export default function ClientDetailScreen({ route, navigation }: ClientDetailSc
   const loadRelatives = async () => {
     try {
       setLoadingRelatives(true);
-      // Call the API to get relatives for this client
       const response = await fetch(`https://albiscare.co.uk/api/v1/relative/list.php?client_id=${clientId}`);
       const data = await response.json();
-      
+
       if (data.success) {
-        setRelatives(data.data?.relatives || []);
+        const relativesData = data.data?.relatives || [];
+        setRelatives(relativesData);
       }
     } catch (error) {
       console.error('Error loading relatives:', error);
@@ -156,12 +157,16 @@ export default function ClientDetailScreen({ route, navigation }: ClientDetailSc
           <Text style={styles.headerBackText}>← Back</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Client Details</Text>
-        <TouchableOpacity
-          style={styles.editButton}
-          onPress={() => navigation.navigate('EditClient', { clientId: client.cNo })}
-        >
-          <Text style={styles.editButtonText}>Edit</Text>
-        </TouchableOpacity>
+        {!isReadOnly && canEdit('clients') ? (
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={() => navigation.navigate('EditClient', { clientId: client.cNo })}
+          >
+            <Text style={styles.editButtonText}>Edit</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 60 }} />
+        )}
       </View>
 
       <ScrollView 
@@ -172,11 +177,11 @@ export default function ClientDetailScreen({ route, navigation }: ClientDetailSc
         <View style={styles.profileSection}>
           <View style={styles.avatarLarge}>
             <Text style={styles.avatarLargeText}>
-              {client.cFName?.charAt(0)}{client.cLName?.charAt(0)}
+              {(client.cFName?.charAt(0) || '')}{(client.cLName?.charAt(0) || '')}
             </Text>
           </View>
           <Text style={styles.clientNameLarge}>
-            {client.cTitle} {client.cFName} {client.cLName}
+            {[client.cTitle, client.cFName, client.cLName].filter(v => v).join(' ')}
           </Text>
           <View style={styles.statusBadgeLarge}>
             <Text style={styles.statusTextLarge}>{client.status || 'Active'}</Text>
@@ -190,7 +195,7 @@ export default function ClientDetailScreen({ route, navigation }: ClientDetailSc
           </Text>
         </View>
 
-        {/* FAMILY ACCESS SECTION - UPDATED */}
+   {/* FAMILY ACCESS SECTION - UPDATED WITH CLICKABLE CARDS */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>👨‍👩‍👧 Family Access</Text>
           <Text style={styles.sectionDescription}>
@@ -209,36 +214,69 @@ export default function ClientDetailScreen({ route, navigation }: ClientDetailSc
                 Current Family Members ({relatives.length})
               </Text>
               {relatives.map((relative, index) => (
-                <View key={index} style={styles.relativeCard}>
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.relativeCard,
+                    relative.account_status === 'inactive' && styles.relativeCardInactive
+                  ]}
+                  onPress={() => {
+                    if (relative.rNo === null || relative.rNo === undefined) {
+                      Alert.alert('Error', 'Relative ID is missing. Please try refreshing the page.');
+                      return;
+                    }
+
+                    navigation.navigate('RelativeDetail', {
+                      relativeId: relative.rNo,
+                      clientId: client.cNo,
+                      clientName: `${client.cFName} ${client.cLName}`
+                    });
+                  }}
+                >
                   <View style={styles.relativeInfo}>
-                    <View style={styles.relativeAvatar}>
+                    <View style={[
+                      styles.relativeAvatar,
+                      relative.account_status === 'inactive' && styles.relativeAvatarInactive
+                    ]}>
                       <Text style={styles.relativeAvatarText}>
-                        {relative.rFName?.charAt(0)}{relative.rLName?.charAt(0)}
+                        {(relative.rFName?.charAt(0) || '')}{(relative.rLName?.charAt(0) || '')}
                       </Text>
                     </View>
                     <View style={styles.relativeDetails}>
-                      <Text style={styles.relativeName}>
-                        {relative.rTitle} {relative.rFName} {relative.rLName}
-                      </Text>
+                      <View style={styles.relativeNameRow}>
+                        <Text style={styles.relativeName}>
+                          {[relative.rTitle, relative.rFName, relative.rLName].filter(v => v).join(' ')}
+                        </Text>
+                        {relative.account_status === 'inactive' && (
+                          <View style={styles.inactiveBadge}>
+                            <Text style={styles.inactiveBadgeText}>Inactive</Text>
+                          </View>
+                        )}
+                      </View>
                       <Text style={styles.relativeRelationship}>
                         {relative.relationship}
                       </Text>
                       <Text style={styles.relativeEmail}>
-                        ✉️ {relative.rEmail}
+                        ✉️ {relative.rEmail || relative.login_email}
                       </Text>
-                      {relative.is_primary_contact === 1 && (
-                        <View style={styles.primaryBadge}>
-                          <Text style={styles.primaryBadgeText}>⭐ Primary Contact</Text>
-                        </View>
-                      )}
-                      {relative.is_emergency_contact === 1 && (
-                        <View style={styles.emergencyBadge}>
-                          <Text style={styles.emergencyBadgeText}>🚨 Emergency Contact</Text>
-                        </View>
-                      )}
+                      <View style={styles.relativeBadgesRow}>
+                        {relative.is_primary_contact && (
+                          <View style={styles.primaryBadge}>
+                            <Text style={styles.primaryBadgeText}>⭐ Primary</Text>
+                          </View>
+                        )}
+                        {relative.is_emergency_contact && (
+                          <View style={styles.emergencyBadge}>
+                            <Text style={styles.emergencyBadgeText}>🚨 Emergency</Text>
+                          </View>
+                        )}
+                      </View>
                     </View>
                   </View>
-                </View>
+                  <View style={styles.relativeCardArrow}>
+                    <Text style={styles.relativeCardArrowText}>›</Text>
+                  </View>
+                </TouchableOpacity>
               ))}
             </View>
           ) : (
@@ -249,20 +287,22 @@ export default function ClientDetailScreen({ route, navigation }: ClientDetailSc
               </Text>
             </View>
           )}
-          
-          {/* Add Family Member Button */}
-          <TouchableOpacity
-            style={styles.grantAccessButton}
-            onPress={() => navigation.navigate('GrantFamilyAccess', { 
-              clientId: client.cNo,
-              clientName: `${client.cFName} ${client.cLName}`
-            })}
-          >
-            <Text style={styles.grantAccessIcon}>➕</Text>
-            <Text style={styles.grantAccessText}>
-              {relatives.length > 0 ? 'Add Another Family Member' : 'Grant Family Access'}
-            </Text>
-          </TouchableOpacity>
+
+          {/* Add Family Member Button - Hidden in read-only mode */}
+          {!isReadOnly && (
+            <TouchableOpacity
+              style={styles.grantAccessButton}
+              onPress={() => navigation.navigate('GrantFamilyAccess', {
+                clientId: client.cNo,
+                clientName: `${client.cFName} ${client.cLName}`
+              })}
+            >
+              <Text style={styles.grantAccessIcon}>➕</Text>
+              <Text style={styles.grantAccessText}>
+                {relatives.length > 0 ? 'Add Another Family Member' : 'Grant Family Access'}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Contact Information */}
@@ -386,14 +426,16 @@ export default function ClientDetailScreen({ route, navigation }: ClientDetailSc
         )}
 
         {/* Delete Button */}
-        <View style={styles.section}>
-          <TouchableOpacity
-            style={styles.deleteButton}
-            onPress={handleDelete}
-          >
-            <Text style={styles.deleteButtonText}>🗑️ Delete Client</Text>
-          </TouchableOpacity>
-        </View>
+        {!isReadOnly && canDelete('clients') && (
+          <View style={styles.section}>
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={handleDelete}
+            >
+              <Text style={styles.deleteButtonText}>🗑️ Delete Client</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
     </ScreenWrapper>
   );
@@ -545,26 +587,44 @@ const styles = StyleSheet.create({
     color: '#475569',
     marginBottom: 12,
   },
+  // CORRECTED: Merged relativeCard styles
   relativeCard: {
     backgroundColor: '#f8fafc',
     padding: 12,
     borderRadius: 8,
     marginBottom: 8,
     borderLeftWidth: 3,
-    borderLeftColor: '#2563eb',
+    borderLeftColor: '#10b981', // Changed from blue to green to distinguish relatives
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  relativeCardInactive: {
+    backgroundColor: '#fafafa',
+    borderLeftColor: '#94a3b8',
+    opacity: 0.7,
   },
   relativeInfo: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    flex: 1, // Added flex 1 to take available space
   },
+  // CORRECTED: Merged relativeAvatar styles
   relativeAvatar: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#2563eb',
+    backgroundColor: '#10b981',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+  },
+  relativeAvatarInactive: {
+    backgroundColor: '#94a3b8',
   },
   relativeAvatarText: {
     color: 'white',
@@ -574,11 +634,27 @@ const styles = StyleSheet.create({
   relativeDetails: {
     flex: 1,
   },
+  relativeNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
   relativeName: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1e293b',
-    marginBottom: 4,
+  },
+  inactiveBadge: {
+    backgroundColor: '#fee2e2',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginLeft: 8,
+  },
+  inactiveBadgeText: {
+    fontSize: 10,
+    color: '#991b1b',
+    fontWeight: '600',
   },
   relativeRelationship: {
     fontSize: 14,
@@ -590,13 +666,17 @@ const styles = StyleSheet.create({
     color: '#64748b',
     marginBottom: 6,
   },
+  relativeBadgesRow: {
+    flexDirection: 'row',
+    marginTop: 4,
+    gap: 6,
+  },
   primaryBadge: {
     backgroundColor: '#fef3c7',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
     alignSelf: 'flex-start',
-    marginTop: 4,
   },
   primaryBadgeText: {
     fontSize: 11,
@@ -609,12 +689,20 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 6,
     alignSelf: 'flex-start',
-    marginTop: 4,
   },
   emergencyBadgeText: {
     fontSize: 11,
     color: '#991b1b',
     fontWeight: '600',
+  },
+  relativeCardArrow: {
+    marginLeft: 'auto',
+    paddingLeft: 8,
+  },
+  relativeCardArrowText: {
+    fontSize: 28,
+    color: '#cbd5e1',
+    fontWeight: '300',
   },
   noRelativesContainer: {
     alignItems: 'center',

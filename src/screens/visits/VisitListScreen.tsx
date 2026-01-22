@@ -16,6 +16,7 @@ import { ScreenWrapper } from '../../components';
 import { visitApi, ScheduledVisit } from '../../services/api/visitApi';
 import { useFocusEffect } from '@react-navigation/native';
 import { formatDate } from '../../utils/dateFormatter';
+import { usePermissions } from '../../hooks/usePermissions';
 
 interface VisitListScreenProps {
   navigation: any;
@@ -30,6 +31,9 @@ export default function VisitListScreen({ navigation, route }: VisitListScreenPr
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
+  // Permission checks
+  const { canCreate } = usePermissions();
+
   useFocusEffect(
     useCallback(() => {
       loadVisits();
@@ -39,7 +43,13 @@ export default function VisitListScreen({ navigation, route }: VisitListScreenPr
   const loadVisits = async () => {
     try {
       setLoading(true);
-      const response = await visitApi.getVisits();
+
+      // Build filters from route params (staff_id or client_id)
+      const filters: any = {};
+      if (route.params?.staff_id) filters.staff_id = route.params.staff_id;
+      if (route.params?.client_id) filters.client_id = route.params.client_id;
+
+      const response = await visitApi.getVisits(Object.keys(filters).length > 0 ? filters : undefined);
 
       if (response.success && response.data) {
         setVisits(response.data.visits || []);
@@ -168,19 +178,23 @@ export default function VisitListScreen({ navigation, route }: VisitListScreenPr
   return (
     <ScreenWrapper>
       <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton} 
+        <TouchableOpacity
+          style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
           <Text style={styles.backText}>← Back</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Scheduled Visits</Text>
-        <TouchableOpacity 
-          style={styles.addButton} 
-          onPress={() => navigation.navigate('ScheduleVisit')}
-        >
-          <Text style={styles.addButtonText}>+ Add</Text>
-        </TouchableOpacity>
+        {canCreate('visits') ? (
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => navigation.navigate('ScheduleVisit')}
+          >
+            <Text style={styles.addButtonText}>+ Add</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 70 }} />
+        )}
       </View>
 
       <View style={styles.searchContainer}>

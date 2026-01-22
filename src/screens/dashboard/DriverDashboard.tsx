@@ -156,7 +156,7 @@ const driverName = userData?.name || userData?.staff?.name || 'Driver';
           </View>
           <TouchableOpacity
             style={styles.profileButton}
-            onPress={() => navigation?.navigate('Profile')}
+            onPress={() => Alert.alert('Profile', 'Profile management coming soon!')}
           >
             <Text style={styles.profileIcon}>👤</Text>
           </TouchableOpacity>
@@ -196,14 +196,14 @@ const driverName = userData?.name || userData?.staff?.name || 'Driver';
                 key={transport.transport_id}
                 style={styles.transportCard}
                 onPress={() => {
-                  if (transport.status === 'scheduled') {
-                    navigation?.navigate('TransportExecution', { 
-                      transportId: transport.transport_id,
-                      userData: userData
+                  if (transport.status === 'completed' || transport.status === 'cancelled') {
+                    navigation?.navigate('TransportDetail', {
+                      transportId: transport.transport_id
                     });
                   } else {
-                    navigation?.navigate('TransportDetail', { 
-                      transportId: transport.transport_id 
+                    navigation?.navigate('TransportExecution', {
+                      transportId: transport.transport_id,
+                      userData: userData
                     });
                   }
                 }}
@@ -286,9 +286,7 @@ const driverName = userData?.name || userData?.staff?.name || 'Driver';
               <TouchableOpacity
                 key={transport.transport_id}
                 style={styles.upcomingCard}
-                onPress={() => navigation?.navigate('TransportDetail', { 
-                  transportId: transport.transport_id 
-                })}
+                onPress={() => Alert.alert('Transport Details', 'Detailed transport view coming soon!')}
               >
                 <View style={styles.upcomingDate}>
                   <Text style={styles.upcomingDay}>
@@ -313,7 +311,7 @@ const driverName = userData?.name || userData?.staff?.name || 'Driver';
             {upcomingTransports.length > 5 && (
               <TouchableOpacity
                 style={styles.viewAllButton}
-                onPress={() => navigation?.navigate('MyTransports')}
+                onPress={() => navigation?.navigate('TransportList')}
               >
                 <Text style={styles.viewAllText}>View All Upcoming Transports →</Text>
               </TouchableOpacity>
@@ -327,23 +325,23 @@ const driverName = userData?.name || userData?.staff?.name || 'Driver';
 
           <TouchableOpacity
             style={styles.actionCard}
-            onPress={() => navigation?.navigate('MyTransportLogs')}
+            onPress={() => navigation?.navigate('TransportList')}
           >
             <Text style={styles.actionIcon}>📋</Text>
             <View style={styles.actionContent}>
-              <Text style={styles.actionTitle}>My Transport Logs</Text>
-              <Text style={styles.actionDescription}>View your completed transports</Text>
+              <Text style={styles.actionTitle}>Transport Logs</Text>
+              <Text style={styles.actionDescription}>View transport history</Text>
             </View>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.actionCard}
-            onPress={() => navigation?.navigate('MyTransports')}
+            onPress={() => navigation?.navigate('TransportList')}
           >
             <Text style={styles.actionIcon}>🗓️</Text>
             <View style={styles.actionContent}>
               <Text style={styles.actionTitle}>Full Schedule</Text>
-              <Text style={styles.actionDescription}>View all your assigned transports</Text>
+              <Text style={styles.actionDescription}>View all assigned transports</Text>
             </View>
           </TouchableOpacity>
 

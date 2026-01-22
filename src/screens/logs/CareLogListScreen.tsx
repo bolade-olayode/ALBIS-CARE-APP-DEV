@@ -16,6 +16,7 @@ import { ScreenWrapper } from '../../components';
 import { careLogApi, CareLog } from '../../services/api/careLogApi';
 import { useFocusEffect } from '@react-navigation/native';
 import { formatDate } from '../../utils/dateFormatter'; // Import Helper
+import { usePermissions } from '../../hooks/usePermissions';
 
 interface CareLogListScreenProps {
   navigation: any;
@@ -29,6 +30,9 @@ export default function CareLogListScreen({ navigation, route }: CareLogListScre
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Permission checks - logs should only be created via visit execution
+  const { canCreate } = usePermissions();
+
   useFocusEffect(
     useCallback(() => {
       loadLogs();
@@ -38,7 +42,13 @@ export default function CareLogListScreen({ navigation, route }: CareLogListScre
   const loadLogs = async () => {
     try {
       setLoading(true);
-      const response = await careLogApi.getLogs();
+
+      // Build filters from route params (staff_id or client_id)
+      const filters: any = {};
+      if (route.params?.staff_id) filters.staff_id = route.params.staff_id;
+      if (route.params?.client_id) filters.client_id = route.params.client_id;
+
+      const response = await careLogApi.getLogs(Object.keys(filters).length > 0 ? filters : undefined);
 
       if (response.success && response.data) {
         setLogs(response.data.logs || []);
@@ -144,34 +154,34 @@ export default function CareLogListScreen({ navigation, route }: CareLogListScre
         )}
 
         <View style={styles.activitiesRow}>
-          {item.personal_care === 1 && (
+          {item.personal_care && (
             <View style={styles.activityBadge}>
               <Text style={styles.activityText}>🛁 Personal Care</Text>
             </View>
           )}
-          {item.medication === 1 && (
+          {item.medication && (
             <View style={styles.activityBadge}>
               <Text style={styles.activityText}>💊 Medication</Text>
             </View>
           )}
-          {item.meal_preparation === 1 && (
+          {item.meal_preparation && (
             <View style={styles.activityBadge}>
               <Text style={styles.activityText}>🍽️ Meals</Text>
             </View>
           )}
-          {item.housekeeping === 1 && (
+          {item.housekeeping && (
             <View style={styles.activityBadge}>
               <Text style={styles.activityText}>🧹 Housekeeping</Text>
             </View>
           )}
-          {item.companionship === 1 && (
+          {item.companionship && (
             <View style={styles.activityBadge}>
               <Text style={styles.activityText}>💬 Companionship</Text>
             </View>
           )}
         </View>
 
-        {item.follow_up_required === 1 && (
+        {item.follow_up_required && (
           <View style={styles.followUpBadge}>
             <Text style={styles.followUpText}>⚠️ Follow-up Required</Text>
           </View>
@@ -187,16 +197,8 @@ export default function CareLogListScreen({ navigation, route }: CareLogListScre
       <Text style={styles.emptyStateText}>
         {searchQuery
           ? 'No logs match your search'
-          : 'Start by adding your first care log'}
+          : 'Care logs are created automatically when completing visits'}
       </Text>
-      {!searchQuery && (
-        <TouchableOpacity
-          style={styles.emptyStateButton}
-          onPress={() => navigation.navigate('AddCareLog')}
-        >
-          <Text style={styles.emptyStateButtonText}>+ Add Care Log</Text>
-        </TouchableOpacity>
-      )}
     </View>
   );
 
@@ -231,12 +233,8 @@ export default function CareLogListScreen({ navigation, route }: CareLogListScre
           <Text style={styles.backText}>← Back</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Care Logs</Text>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => navigation.navigate('AddCareLog')}
-        >
-          <Text style={styles.addButtonText}>+ Add</Text>
-        </TouchableOpacity>
+        {/* Hide Add button - logs can only be created via visit execution */}
+        <View style={{ width: 70 }} />
       </View>
 
       <View style={styles.searchContainer}>
@@ -267,7 +265,7 @@ export default function CareLogListScreen({ navigation, route }: CareLogListScre
         </View>
         <View style={styles.statBox}>
           <Text style={styles.statNumber}>
-            {filteredLogs.filter((log) => log.follow_up_required === 1).length}
+            {filteredLogs.filter((log) => log.follow_up_required).length}
           </Text>
           <Text style={styles.statLabel}>Follow-ups</Text>
         </View>

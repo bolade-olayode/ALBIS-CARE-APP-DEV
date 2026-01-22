@@ -70,14 +70,26 @@ export default function TransportListScreen({ navigation, route }: TransportList
     }
   };
 
-  const renderItem = ({ item }: { item: any }) => (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={() => navigation.navigate('TransportExecution', { 
-        transportId: item.transport_id,
-        userData: userData 
-      })}
-    >
+  const renderItem = ({ item }: { item: any }) => {
+    // Navigate to detail screen if completed, execution screen otherwise
+    const isCompleted = item.status === 'completed' || item.status === 'cancelled';
+
+    return (
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => {
+          if (isCompleted) {
+            navigation.navigate('TransportDetail', {
+              transportId: item.transport_id
+            });
+          } else {
+            navigation.navigate('TransportExecution', {
+              transportId: item.transport_id,
+              userData: userData
+            });
+          }
+        }}
+      >
       <View style={styles.cardHeader}>
         <View>
           <Text style={styles.clientName}>{item.client_name}</Text>
@@ -108,7 +120,8 @@ export default function TransportListScreen({ navigation, route }: TransportList
         </View>
       </View>
     </TouchableOpacity>
-  );
+    );
+  };
 
   if (loading) {
     return (

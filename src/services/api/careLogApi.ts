@@ -43,34 +43,28 @@ export interface CareLogFilters {
 export const careLogApi = {
   // Get all logs with optional filters
   getLogs: async (filters?: CareLogFilters) => {
-  try {
-    const params = new URLSearchParams();
-    
-    if (filters?.client_id) params.append('client_id', filters.client_id.toString());
-    if (filters?.staff_id) params.append('staff_id', filters.staff_id.toString());
-    if (filters?.start_date) params.append('start_date', filters.start_date);
-    if (filters?.end_date) params.append('end_date', filters.end_date);
-    if (filters?.search) params.append('search', filters.search);
+    try {
+      const params = new URLSearchParams();
 
-    const queryString = params.toString();
-    const url = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.LOGS}/index.php${queryString ? '?' + queryString : ''}`;
-    
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      }
-    });
+      if (filters?.client_id) params.append('client_id', filters.client_id.toString());
+      if (filters?.staff_id) params.append('staff_id', filters.staff_id.toString());
+      if (filters?.start_date) params.append('start_date', filters.start_date);
+      if (filters?.end_date) params.append('end_date', filters.end_date);
+      if (filters?.search) params.append('search', filters.search);
 
-    const data = await response.json();
-    return data;
-  } catch (error: any) {
-    return {
-      success: false,
-      message: error.message || 'Failed to fetch logs'
-    };
-  }
-},
+      const queryString = params.toString();
+      const url = `${API_CONFIG.ENDPOINTS.LOGS}/index.php${queryString ? '?' + queryString : ''}`;
+
+      // Use apiClient to automatically include Authorization header
+      const response = await apiClient.get(url);
+      return response.data;
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.response?.data?.message || error.message || 'Failed to fetch logs'
+      };
+    }
+  },
 
   // Get single log
   getLog: async (logId: number) => {
@@ -87,6 +81,19 @@ export const careLogApi = {
 
   // Create new log
   createLog: async (logData: CareLog) => {
+    try {
+      const response = await apiClient.post(`${API_CONFIG.ENDPOINTS.LOGS}/create.php`, logData);
+      return response.data;
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.response?.data?.message || error.message || 'Failed to create log'
+      };
+    }
+  },
+
+  // Alias for createLog (for compatibility)
+  createCareLog: async (logData: CareLog) => {
     try {
       const response = await apiClient.post(`${API_CONFIG.ENDPOINTS.LOGS}/create.php`, logData);
       return response.data;

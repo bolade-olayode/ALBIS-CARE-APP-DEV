@@ -40,7 +40,7 @@ export const visitApi = {
   getVisits: async (filters?: VisitFilters) => {
     try {
       const params = new URLSearchParams();
-      
+
       if (filters?.client_id) params.append('client_id', filters.client_id.toString());
       if (filters?.staff_id) params.append('staff_id', filters.staff_id.toString());
       if (filters?.start_date) params.append('start_date', filters.start_date);
@@ -48,21 +48,15 @@ export const visitApi = {
       if (filters?.status) params.append('status', filters.status);
 
       const queryString = params.toString();
-      const url = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.VISITS}/index.php${queryString ? '?' + queryString : ''}`;
-      
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
+      const url = `${API_CONFIG.ENDPOINTS.VISITS}/index.php${queryString ? '?' + queryString : ''}`;
 
-      const data = await response.json();
-      return data;
+      // Use apiClient to automatically include Authorization header
+      const response = await apiClient.get(url);
+      return response.data;
     } catch (error: any) {
       return {
         success: false,
-        message: error.message || 'Failed to fetch visits'
+        message: error.response?.data?.message || error.message || 'Failed to fetch visits'
       };
     }
   },

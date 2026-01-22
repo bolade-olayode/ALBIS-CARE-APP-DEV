@@ -185,7 +185,7 @@ export default function VisitExecutionScreen({ navigation, route }: VisitExecuti
                 [
                   {
                     text: 'OK',
-                    onPress: () => navigation.navigate('StaffDashboard'),
+                    onPress: () => navigation.navigate('Dashboard'),
                   },
                 ]
               );
