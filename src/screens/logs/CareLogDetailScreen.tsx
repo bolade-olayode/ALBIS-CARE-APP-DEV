@@ -192,31 +192,31 @@ export default function CareLogDetailScreen({ route, navigation }: CareLogDetail
           <Text style={styles.sectionTitle}>Activities Performed</Text>
 
           <View style={styles.activitiesGrid}>
-            {log.personal_care && (
+            {!!log.personal_care && (
               <View style={styles.activityCard}>
                 <Text style={styles.activityIcon}>🛁</Text>
                 <Text style={styles.activityLabel}>Personal Care</Text>
               </View>
             )}
-            {log.medication && (
+            {!!log.medication && (
               <View style={styles.activityCard}>
                 <Text style={styles.activityIcon}>💊</Text>
                 <Text style={styles.activityLabel}>Medication</Text>
               </View>
             )}
-            {log.meal_preparation && (
+            {!!log.meal_preparation && (
               <View style={styles.activityCard}>
                 <Text style={styles.activityIcon}>🍽️</Text>
                 <Text style={styles.activityLabel}>Meal Prep</Text>
               </View>
             )}
-            {log.housekeeping && (
+            {!!log.housekeeping && (
               <View style={styles.activityCard}>
                 <Text style={styles.activityIcon}>🧹</Text>
                 <Text style={styles.activityLabel}>Housekeeping</Text>
               </View>
             )}
-            {log.companionship && (
+            {!!log.companionship && (
               <View style={styles.activityCard}>
                 <Text style={styles.activityIcon}>💬</Text>
                 <Text style={styles.activityLabel}>Companionship</Text>
@@ -237,21 +237,21 @@ export default function CareLogDetailScreen({ route, navigation }: CareLogDetail
             <Text style={styles.sectionTitle}>Vital Signs</Text>
 
             <View style={styles.vitalsGrid}>
-              {log.temperature && (
+              {!!log.temperature && (
                 <View style={styles.vitalCard}>
                   <Text style={styles.vitalIcon}>🌡️</Text>
                   <Text style={styles.vitalLabel}>Temperature</Text>
                   <Text style={styles.vitalValue}>{String(log.temperature)}°C</Text>
                 </View>
               )}
-              {log.blood_pressure && (
+              {!!log.blood_pressure && (
                 <View style={styles.vitalCard}>
                   <Text style={styles.vitalIcon}>💉</Text>
                   <Text style={styles.vitalLabel}>Blood Pressure</Text>
                   <Text style={styles.vitalValue}>{String(log.blood_pressure)}</Text>
                 </View>
               )}
-              {log.heart_rate && (
+              {!!log.heart_rate && (
                 <View style={styles.vitalCard}>
                   <Text style={styles.vitalIcon}>❤️</Text>
                   <Text style={styles.vitalLabel}>Heart Rate</Text>
@@ -296,7 +296,7 @@ export default function CareLogDetailScreen({ route, navigation }: CareLogDetail
         </View>
 
         {/* Follow-up */}
-        {log.follow_up_required && (
+        {!!log.follow_up_required && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>⚠️ Follow-up Required</Text>
 

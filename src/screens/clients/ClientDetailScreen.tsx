@@ -260,12 +260,12 @@ export default function ClientDetailScreen({ route, navigation }: ClientDetailSc
                         ✉️ {relative.rEmail || relative.login_email}
                       </Text>
                       <View style={styles.relativeBadgesRow}>
-                        {relative.is_primary_contact && (
+                        {!!relative.is_primary_contact && (
                           <View style={styles.primaryBadge}>
                             <Text style={styles.primaryBadgeText}>⭐ Primary</Text>
                           </View>
                         )}
-                        {relative.is_emergency_contact && (
+                        {!!relative.is_emergency_contact && (
                           <View style={styles.emergencyBadge}>
                             <Text style={styles.emergencyBadgeText}>🚨 Emergency</Text>
                           </View>
@@ -380,7 +380,7 @@ export default function ClientDetailScreen({ route, navigation }: ClientDetailSc
             </View>
           )}
 
-          {client.NHSNo && (
+          {!!client.NHSNo && (
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>🏥 NHS Number:</Text>
               <Text style={styles.infoValue}>{client.NHSNo}</Text>

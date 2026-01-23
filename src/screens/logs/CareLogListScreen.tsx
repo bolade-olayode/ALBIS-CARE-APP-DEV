@@ -115,8 +115,8 @@ export default function CareLogListScreen({ navigation, route }: CareLogListScre
     >
       <View style={styles.logHeader}>
         <View style={styles.logHeaderLeft}>
-          <Text style={styles.clientName}>{item.client_name}</Text>
-          <Text style={styles.staffName}>by {item.staff_name}</Text>
+          <Text style={styles.clientName}>{item.client_name || 'Unknown Client'}</Text>
+          <Text style={styles.staffName}>by {item.staff_name || 'Unknown Staff'}</Text>
         </View>
         <View
           style={[
@@ -149,39 +149,39 @@ export default function CareLogListScreen({ navigation, route }: CareLogListScre
         {item.client_mood && (
           <View style={styles.infoRow}>
             <Text style={styles.infoIcon}>{getMoodEmoji(item.client_mood)}</Text>
-            <Text style={styles.infoText}>Mood: {item.client_mood}</Text>
+            <Text style={styles.infoText}>Mood: {item.client_mood || 'Not recorded'}</Text>
           </View>
         )}
 
         <View style={styles.activitiesRow}>
-          {item.personal_care && (
+          {!!item.personal_care && (
             <View style={styles.activityBadge}>
               <Text style={styles.activityText}>🛁 Personal Care</Text>
             </View>
           )}
-          {item.medication && (
+          {!!item.medication && (
             <View style={styles.activityBadge}>
               <Text style={styles.activityText}>💊 Medication</Text>
             </View>
           )}
-          {item.meal_preparation && (
+          {!!item.meal_preparation && (
             <View style={styles.activityBadge}>
               <Text style={styles.activityText}>🍽️ Meals</Text>
             </View>
           )}
-          {item.housekeeping && (
+          {!!item.housekeeping && (
             <View style={styles.activityBadge}>
               <Text style={styles.activityText}>🧹 Housekeeping</Text>
             </View>
           )}
-          {item.companionship && (
+          {!!item.companionship && (
             <View style={styles.activityBadge}>
               <Text style={styles.activityText}>💬 Companionship</Text>
             </View>
           )}
         </View>
 
-        {item.follow_up_required && (
+        {!!item.follow_up_required && (
           <View style={styles.followUpBadge}>
             <Text style={styles.followUpText}>⚠️ Follow-up Required</Text>
           </View>
