@@ -9,9 +9,10 @@ import {
   ScrollView,
   SafeAreaView,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback } from 'react';
+import { staffApi } from '../../services/api/staffApi';
+import { clientApi } from '../../services/api/clientApi';
 
 interface CareManagerDashboardProps {
   userData: any;
@@ -33,29 +34,23 @@ export default function CareManagerDashboard({ userData, onLogout, navigation }:
 
   const loadStats = async () => {
     try {
-      const token = await AsyncStorage.getItem('authToken');
+      console.log('=== CareManagerDashboard: Loading Stats ===');
 
-      // Load client count
-      const clientResponse = await fetch('https://albiscare.co.uk/api/v1/clients/', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      const clientData = await clientResponse.json();
+      // Load client count using apiClient (includes Authorization header automatically)
+      const clientData = await clientApi.getClients();
+      console.log('Client data response:', clientData);
       if (clientData.success) {
         setClientCount(clientData.data?.total || 0);
       }
 
-      // Load staff count
-      const staffResponse = await fetch('https://albiscare.co.uk/api/v1/staff/', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      const staffData = await staffResponse.json();
+      // Load staff count using apiClient (includes Authorization header automatically)
+      const staffData = await staffApi.getStaff();
+      console.log('Staff data response:', staffData);
       if (staffData.success) {
         setStaffCount(staffData.data?.total || 0);
       }
+
+      console.log('=== CareManagerDashboard: Stats Loaded ===');
     } catch (error) {
       console.error('Error loading stats:', error);
     } finally {
@@ -70,7 +65,9 @@ export default function CareManagerDashboard({ userData, onLogout, navigation }:
         <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>Welcome back,</Text>
-            <Text style={styles.roleBadge}>Care Manager</Text>
+            <Text style={styles.roleBadge}>
+              {userData?.name || userData?.staff?.name || userData?.email || 'Care Manager'}
+            </Text>
           </View>
           <TouchableOpacity style={styles.logoutButton} onPress={onLogout}>
             <Text style={styles.logoutText}>Logout</Text>
