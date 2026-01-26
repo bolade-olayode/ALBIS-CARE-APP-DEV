@@ -28,7 +28,9 @@ export default function TransportListScreen({ navigation, route }: TransportList
 
   // Get User Data to filter list (if driver)
   const userData = route.params?.userData || {};
-  const isDriver = userData?.role === 'driver';
+  const userRole = userData?.effective_role || userData?.role || '';
+  const isDriver = userRole === 'driver' || userData?.staff?.staff_role?.toLowerCase()?.includes('driver');
+  const isAdmin = userRole === 'super_admin' || userRole === 'admin' || userRole === 'care_manager';
 
   useFocusEffect(
     useCallback(() => {
@@ -71,18 +73,23 @@ export default function TransportListScreen({ navigation, route }: TransportList
   };
 
   const renderItem = ({ item }: { item: any }) => {
-    // Navigate to detail screen if completed, execution screen otherwise
+    // Navigate to detail screen if completed OR if user is admin (read-only)
+    // Only drivers can access the execution screen for active transports
     const isCompleted = item.status === 'completed' || item.status === 'cancelled';
+    const shouldShowReadOnly = isCompleted || isAdmin;
 
     return (
       <TouchableOpacity
         style={styles.card}
         onPress={() => {
-          if (isCompleted) {
+          if (shouldShowReadOnly) {
+            // Admins and completed transports go to read-only detail view
             navigation.navigate('TransportDetail', {
-              transportId: item.transport_id
+              transportId: item.transport_id,
+              isReadOnly: isAdmin
             });
           } else {
+            // Only drivers can execute active transports
             navigation.navigate('TransportExecution', {
               transportId: item.transport_id,
               userData: userData

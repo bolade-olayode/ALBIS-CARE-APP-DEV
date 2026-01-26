@@ -42,7 +42,8 @@ export const clientApi = {
   // Get all clients
   getClients: async (): Promise<ClientsResponse> => {
     try {
-      const response = await apiClient.get<ClientsResponse>('/v1/clients');
+      // IMPORTANT: Trailing slash required to avoid redirect that strips headers
+      const response = await apiClient.get<ClientsResponse>('/v1/clients/');
       return response.data;
     } catch (error: any) {
       if (error.response?.data) {

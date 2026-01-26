@@ -31,9 +31,17 @@ export default function DriverDashboard({ navigation, userData, onLogout }: Driv
     completed: 0,
   });
 
- // Robust data extraction (prioritize flat structure, fallback to nested)
-const driverId = userData?.id || userData?.staff?.staff_id || userData?.user?.id || 0;
-const driverName = userData?.name || userData?.staff?.name || 'Driver';
+  // DEBUG: Log userData to see structure
+  console.log('=== DRIVER DASHBOARD DEBUG ===');
+  console.log('Full userData:', JSON.stringify(userData, null, 2));
+
+  // Robust data extraction - check multiple possible locations for driver/staff ID
+  const driverId = userData?.staff_id || userData?.staff?.staff_id || userData?.id || userData?.user?.id || 0;
+  const driverName = userData?.name || userData?.staff?.name || userData?.first_name || 'Driver';
+
+  console.log('Extracted driverId:', driverId);
+  console.log('Extracted driverName:', driverName);
+  console.log('==============================');
 
   useEffect(() => {
     loadDashboardData();
@@ -311,7 +319,7 @@ const driverName = userData?.name || userData?.staff?.name || 'Driver';
             {upcomingTransports.length > 5 && (
               <TouchableOpacity
                 style={styles.viewAllButton}
-                onPress={() => navigation?.navigate('TransportList')}
+                onPress={() => navigation?.navigate('TransportList', { userData })}
               >
                 <Text style={styles.viewAllText}>View All Upcoming Transports →</Text>
               </TouchableOpacity>
@@ -325,7 +333,7 @@ const driverName = userData?.name || userData?.staff?.name || 'Driver';
 
           <TouchableOpacity
             style={styles.actionCard}
-            onPress={() => navigation?.navigate('TransportList')}
+            onPress={() => navigation?.navigate('TransportList', { userData })}
           >
             <Text style={styles.actionIcon}>📋</Text>
             <View style={styles.actionContent}>
@@ -336,7 +344,7 @@ const driverName = userData?.name || userData?.staff?.name || 'Driver';
 
           <TouchableOpacity
             style={styles.actionCard}
-            onPress={() => navigation?.navigate('TransportList')}
+            onPress={() => navigation?.navigate('TransportList', { userData })}
           >
             <Text style={styles.actionIcon}>🗓️</Text>
             <View style={styles.actionContent}>

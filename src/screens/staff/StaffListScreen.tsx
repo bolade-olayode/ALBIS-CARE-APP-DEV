@@ -35,6 +35,7 @@ export default function StaffListScreen({ navigation }: StaffListScreenProps) {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedSections, setExpandedSections] = useState<{ [key: number]: boolean }>({
+    0: true, // Other Staff
     1: true,
     2: true,
     3: true,
@@ -59,7 +60,14 @@ export default function StaffListScreen({ navigation }: StaffListScreenProps) {
     try {
       setLoading(true);
       const response = await staffApi.getStaff();
-      
+
+      console.log('=== STAFF LIST DEBUG ===');
+      console.log('Response success:', response.success);
+      console.log('Staff count:', response.data?.staff?.length);
+      console.log('First staff member:', JSON.stringify(response.data?.staff?.[0], null, 2));
+      console.log('All role_ids:', response.data?.staff?.map((s: any) => s.role_id));
+      console.log('========================');
+
       if (response.success && response.data) {
         setStaff(response.data.staff);
       } else {
@@ -117,11 +125,32 @@ export default function StaffListScreen({ navigation }: StaffListScreenProps) {
       { roleId: 4, roleName: 'Drivers', color: '#fef3c7', textColor: '#92400e', icon: '🟡' },
     ];
 
-    return roleConfig.map(role => ({
+    const knownRoleIds = [1, 2, 3, 4];
+    const groups = roleConfig.map(role => ({
       ...role,
       staff: staff.filter(s => s.role_id === role.roleId),
       color: role.color
-    })).filter(group => group.staff.length > 0);
+    }));
+
+    // Add "Other Staff" group for any staff with unknown role_ids
+    const otherStaff = staff.filter(s => !knownRoleIds.includes(s.role_id));
+    if (otherStaff.length > 0) {
+      groups.push({
+        roleId: 0,
+        roleName: 'Other Staff',
+        color: '#f1f5f9',
+        textColor: '#475569',
+        icon: '👤',
+        staff: otherStaff
+      });
+    }
+
+    console.log('=== GROUPING DEBUG ===');
+    console.log('Total staff:', staff.length);
+    groups.forEach(g => console.log(`${g.roleName}: ${g.staff.length} staff`));
+    console.log('======================');
+
+    return groups.filter(group => group.staff.length > 0);
   };
 
   const renderStaffCard = (item: Staff) => {

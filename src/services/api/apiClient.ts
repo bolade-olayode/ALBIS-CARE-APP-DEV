@@ -46,12 +46,20 @@ apiClient.interceptors.response.use(
     return response;
   },
   async (error) => {
-    if (error.response?.status === 401) {
-      // Token expired or invalid - clear storage
-      await AsyncStorage.removeItem('authToken');
-      await AsyncStorage.removeItem('userData');
-    }
-    
+    console.log('=== API CLIENT ERROR ===');
+    console.log('Status:', error.response?.status);
+    console.log('Message:', error.response?.data?.message || error.message);
+    console.log('URL:', error.config?.url);
+    console.log('========================');
+
+    // DISABLED: Auto-clear was causing cascade failures
+    // The 401 was being triggered by header not reaching backend (server config issue)
+    // Only clear on explicit logout, not on API errors
+    // if (error.response?.status === 401) {
+    //   await AsyncStorage.removeItem('authToken');
+    //   await AsyncStorage.removeItem('userData');
+    // }
+
     return Promise.reject(error);
   }
 );

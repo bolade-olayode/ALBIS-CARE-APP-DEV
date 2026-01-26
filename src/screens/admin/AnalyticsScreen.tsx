@@ -12,6 +12,7 @@ import {
   Alert,
   TouchableOpacity
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ScreenWrapper } from '../../components';
 import { LineChart, PieChart } from 'react-native-chart-kit';
 import { useFocusEffect } from '@react-navigation/native';
@@ -35,16 +36,32 @@ export default function AnalyticsScreen({ navigation }: any) {
   const loadAnalytics = async (selectedRange: string) => {
     try {
       setLoading(true);
-      // Pass the range to the backend
-      const response = await fetch(`https://albiscare.co.uk/api/v1/analytics/dashboard.php?range=${selectedRange}`);
+
+      // Get auth token
+      const token = await AsyncStorage.getItem('authToken');
+      console.log('=== ANALYTICS DEBUG ===');
+      console.log('Token exists:', !!token);
+
+      // Pass the range to the backend WITH auth header
+      const response = await fetch(`https://albiscare.co.uk/api/v1/analytics/dashboard.php?range=${selectedRange}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
       const json = await response.json();
+      console.log('Analytics response:', JSON.stringify(json, null, 2));
+
       if (json.success) {
         setData(json.data);
       } else {
-        Alert.alert('Error', 'Failed to load analytics');
+        Alert.alert('Error', json.message || 'Failed to load analytics');
       }
-    } catch (e) {
-      Alert.alert('Error', 'Network error');
+    } catch (e: any) {
+      console.error('Analytics error:', e);
+      Alert.alert('Error', 'Network error: ' + e.message);
     } finally {
       setLoading(false);
       setRefreshing(false);

@@ -1,16 +1,7 @@
 // src/services/api/transportApi.ts
 
-import axios from 'axios';
-
-const API_BASE_URL = 'https://albiscare.co.uk/api/v1';
-
-const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+// Use the shared apiClient with auth interceptor
+import apiClient from './apiClient';
 
 export interface TransportLog {
   transport_id: number;
@@ -64,11 +55,18 @@ export const transportApi = {
       if (filters?.status) params.append('status', filters.status);
 
       const queryString = params.toString();
-      const url = queryString 
-        ? `transport/index.php?${queryString}`
-        : 'transport/index.php';
+      // Use full path with /v1/ prefix for shared apiClient
+      const url = queryString
+        ? `/v1/transport/index.php?${queryString}`
+        : '/v1/transport/index.php';
+
+      console.log('=== TRANSPORT API DEBUG ===');
+      console.log('Fetching transports with URL:', url);
+      console.log('Filters:', filters);
 
       const response = await apiClient.get(url);
+      console.log('Transport response:', response.data);
+      console.log('===========================');
       return response.data;
     } catch (error: any) {
       return {
@@ -81,7 +79,7 @@ export const transportApi = {
   // Create new transport
   createTransport: async (transportData: Partial<TransportLog>) => {
     try {
-      const response = await apiClient.post('transport/create.php', transportData);
+      const response = await apiClient.post('/v1/transport/create.php', transportData);
       return response.data;
     } catch (error: any) {
       return {
@@ -95,7 +93,7 @@ export const transportApi = {
   updateTransport: async (transportId: number, transportData: Partial<TransportLog>) => {
     try {
       const response = await apiClient.put(
-        `transport/update.php?id=${transportId}`,
+        `/v1/transport/update.php?id=${transportId}`,
         transportData
       );
       return response.data;

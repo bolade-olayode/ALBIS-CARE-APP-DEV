@@ -71,26 +71,57 @@ export default function AppNavigator() {
     }
   };
 
-  const handleLogin = async (token: string, data: any) => {
+  const handleLogin = async (token: string, data: any): Promise<void> => {
     console.log('=== HANDLE LOGIN DEBUG ===');
     console.log('Token received:', token ? `${token.substring(0, 20)}...` : 'NULL');
     console.log('User data received:', JSON.stringify(data, null, 2));
 
-    setUserToken(token);
-    setUserData(data);
+    // CRITICAL: Validate token before attempting to store
+    if (!token || typeof token !== 'string' || token.length === 0) {
+      console.error('!!! CRITICAL ERROR: Token is invalid, cannot store !!!');
+      console.error('Token value:', token);
+      console.error('Token type:', typeof token);
+      return;
+    }
 
-    // Store in AsyncStorage
-    await AsyncStorage.setItem('authToken', token);
-    await AsyncStorage.setItem('userData', JSON.stringify(data));
+    try {
+      // Store in AsyncStorage FIRST before setting state
+      console.log('Attempting to store token in AsyncStorage...');
+      await AsyncStorage.setItem('authToken', token);
+      console.log('Token stored successfully!');
 
-    // Verify storage
-    const storedToken = await AsyncStorage.getItem('authToken');
-    const storedData = await AsyncStorage.getItem('userData');
+      console.log('Attempting to store userData in AsyncStorage...');
+      await AsyncStorage.setItem('userData', JSON.stringify(data));
+      console.log('UserData stored successfully!');
 
-    console.log('Token stored successfully:', !!storedToken);
-    console.log('User data stored successfully:', !!storedData);
-    console.log('Stored token matches:', storedToken === token);
-    console.log('==========================');
+      // Verify storage worked
+      const storedToken = await AsyncStorage.getItem('authToken');
+      const storedData = await AsyncStorage.getItem('userData');
+
+      console.log('Verification - Token exists:', !!storedToken);
+      console.log('Verification - UserData exists:', !!storedData);
+      console.log('Verification - Token matches:', storedToken === token);
+
+      if (!storedToken) {
+        console.error('!!! CRITICAL: Token was NOT persisted to AsyncStorage !!!');
+        return;
+      }
+
+      // Only set state after successful storage
+      setUserToken(token);
+      setUserData(data);
+      console.log('State updated - login complete!');
+      console.log('==========================');
+
+    } catch (error: any) {
+      console.error('!!! ASYNCSTORAGE ERROR !!!');
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+      console.error('Full error:', JSON.stringify(error, null, 2));
+      console.error('==========================');
+      // Don't set state if storage failed
+      throw error;
+    }
   };
 
   const handleLogout = async () => {

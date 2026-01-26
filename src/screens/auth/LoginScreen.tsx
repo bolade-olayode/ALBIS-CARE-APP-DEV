@@ -18,7 +18,7 @@ import { authApi } from '../../services/api/authApi';
 
 interface LoginScreenProps {
   navigation?: any;
-  onLogin?: (token: string, userData: any) => void;
+  onLogin?: (token: string, userData: any) => Promise<void>;
 }
 
 export default function LoginScreen({ navigation, onLogin }: LoginScreenProps) {
@@ -48,7 +48,9 @@ export default function LoginScreen({ navigation, onLogin }: LoginScreenProps) {
       // 2. HANDLE SUCCESS (No more guessing || here)
       if (response.success && onLogin) {
         console.log('Calling onLogin with token and user data...');
-        onLogin(response.token, response.user);
+        // CRITICAL FIX: Await the onLogin callback to ensure token is stored
+        await onLogin(response.token, response.user);
+        console.log('onLogin completed - token should now be stored');
       } else {
         console.error('Login failed or onLogin callback missing');
         Alert.alert('Error', 'Login response invalid');
