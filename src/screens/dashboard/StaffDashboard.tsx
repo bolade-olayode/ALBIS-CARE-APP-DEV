@@ -38,7 +38,6 @@ export default function StaffDashboard({ navigation, userData, onLogout }: Staff
     if (staffId) {
       loadDashboardData();
     } else {
-      console.warn('No Staff ID found for dashboard');
       setLoading(false);
     }
   }, [staffId]);
@@ -78,7 +77,7 @@ export default function StaffDashboard({ navigation, userData, onLogout }: Staff
       }
 
     } catch (error) {
-      console.error('Error loading dashboard:', error);
+      // Dashboard load failed silently
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -146,7 +145,7 @@ export default function StaffDashboard({ navigation, userData, onLogout }: Staff
           </View>
           <TouchableOpacity
             style={styles.profileButton}
-            onPress={() => Alert.alert('Profile', 'Profile management coming soon!')}
+            onPress={() => navigation.navigate('Profile')}
           >
             <Text style={styles.profileIcon}>👤</Text>
           </TouchableOpacity>
@@ -276,6 +275,13 @@ export default function StaffDashboard({ navigation, userData, onLogout }: Staff
             <View style={styles.actionContent}>
               <Text style={styles.actionTitle}>My Schedule</Text>
               <Text style={styles.actionDescription}>View my scheduled visits</Text>
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionCard} onPress={() => navigation?.navigate('ChangePassword')}>
+            <Text style={styles.actionIcon}>🔑</Text>
+            <View style={styles.actionContent}>
+              <Text style={styles.actionTitle}>Change Password</Text>
+              <Text style={styles.actionDescription}>Update your login password</Text>
             </View>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.actionCard, styles.logoutCard]} onPress={handleLogout}>

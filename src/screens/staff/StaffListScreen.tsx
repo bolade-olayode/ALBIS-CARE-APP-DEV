@@ -36,10 +36,11 @@ export default function StaffListScreen({ navigation }: StaffListScreenProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedSections, setExpandedSections] = useState<{ [key: number]: boolean }>({
     0: true, // Other Staff
-    1: true,
-    2: true,
-    3: true,
-    4: true,
+    1: true, // Care Managers
+    2: true, // Carers
+    3: true, // Nurses
+    4: true, // Drivers
+    5: true, // Administrators
   });
 
   // Permission checks
@@ -60,13 +61,6 @@ export default function StaffListScreen({ navigation }: StaffListScreenProps) {
     try {
       setLoading(true);
       const response = await staffApi.getStaff();
-
-      console.log('=== STAFF LIST DEBUG ===');
-      console.log('Response success:', response.success);
-      console.log('Staff count:', response.data?.staff?.length);
-      console.log('First staff member:', JSON.stringify(response.data?.staff?.[0], null, 2));
-      console.log('All role_ids:', response.data?.staff?.map((s: any) => s.role_id));
-      console.log('========================');
 
       if (response.success && response.data) {
         setStaff(response.data.staff);
@@ -100,7 +94,7 @@ export default function StaffListScreen({ navigation }: StaffListScreenProps) {
         setStaff(response.data.staff);
       }
     } catch (error) {
-      console.error('Search error:', error);
+      // Search failed silently
     }
   };
 
@@ -117,23 +111,40 @@ export default function StaffListScreen({ navigation }: StaffListScreenProps) {
     }));
   };
 
+  const expandAll = () => {
+    setExpandedSections({ 0: true, 1: true, 2: true, 3: true, 4: true, 5: true });
+  };
+
+  const collapseAll = () => {
+    setExpandedSections({ 0: false, 1: false, 2: false, 3: false, 4: false, 5: false });
+  };
+
   const groupStaffByRole = (): GroupedStaff[] => {
     const roleConfig = [
+      { roleId: 5, roleName: 'Administrators', color: '#f3e8ff', textColor: '#6b21a8', icon: '👑' },
       { roleId: 1, roleName: 'Care Managers', color: '#fee2e2', textColor: '#991b1b', icon: '🔴' },
       { roleId: 2, roleName: 'Carers', color: '#dbeafe', textColor: '#1e40af', icon: '🔵' },
       { roleId: 3, roleName: 'Nurses', color: '#d1fae5', textColor: '#065f46', icon: '🟢' },
       { roleId: 4, roleName: 'Drivers', color: '#fef3c7', textColor: '#92400e', icon: '🟡' },
     ];
 
-    const knownRoleIds = [1, 2, 3, 4];
+    const knownRoleIds = [1, 2, 3, 4, 5];
+
+    // Group staff - also check is_admin flag for admins
     const groups = roleConfig.map(role => ({
       ...role,
-      staff: staff.filter(s => s.role_id === role.roleId),
+      staff: staff.filter(s => {
+        if (role.roleId === 5) {
+          // Admins: check role_id OR is_admin flag
+          return s.role_id === 5 || s.is_admin === true;
+        }
+        return s.role_id === role.roleId;
+      }),
       color: role.color
     }));
 
     // Add "Other Staff" group for any staff with unknown role_ids
-    const otherStaff = staff.filter(s => !knownRoleIds.includes(s.role_id));
+    const otherStaff = staff.filter(s => !knownRoleIds.includes(s.role_id) && !s.is_admin);
     if (otherStaff.length > 0) {
       groups.push({
         roleId: 0,
@@ -144,11 +155,6 @@ export default function StaffListScreen({ navigation }: StaffListScreenProps) {
         staff: otherStaff
       });
     }
-
-    console.log('=== GROUPING DEBUG ===');
-    console.log('Total staff:', staff.length);
-    groups.forEach(g => console.log(`${g.roleName}: ${g.staff.length} staff`));
-    console.log('======================');
 
     return groups.filter(group => group.staff.length > 0);
   };
@@ -235,6 +241,36 @@ export default function StaffListScreen({ navigation }: StaffListScreenProps) {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Staff Summary */}
+      {groupedStaff.length > 0 && (
+        <View style={styles.summaryContainer}>
+          <View style={styles.summaryHeader}>
+            <Text style={styles.summaryTitle}>Staff Overview ({staff.length} total)</Text>
+            <View style={styles.expandButtons}>
+              <TouchableOpacity style={styles.expandBtn} onPress={expandAll}>
+                <Text style={styles.expandBtnText}>Expand All</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.expandBtn} onPress={collapseAll}>
+                <Text style={styles.expandBtnText}>Collapse</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.summaryScroll}>
+            {groupedStaff.map((group) => (
+              <TouchableOpacity
+                key={group.roleId}
+                style={[styles.summaryChip, { backgroundColor: group.color }]}
+                onPress={() => toggleSection(group.roleId)}
+              >
+                <Text style={styles.summaryChipIcon}>{group.icon}</Text>
+                <Text style={styles.summaryChipCount}>{group.staff.length}</Text>
+                <Text style={styles.summaryChipLabel}>{group.roleName}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
 
       {/* Grouped Staff List */}
       <ScrollView
@@ -444,5 +480,63 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#64748b',
     textAlign: 'center',
+  },
+  summaryContainer: {
+    backgroundColor: 'white',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  summaryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  summaryTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  expandButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  expandBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 6,
+  },
+  expandBtnText: {
+    fontSize: 12,
+    color: '#2563eb',
+    fontWeight: '500',
+  },
+  summaryScroll: {
+    flexDirection: 'row',
+  },
+  summaryChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginRight: 10,
+    alignItems: 'center',
+    minWidth: 90,
+  },
+  summaryChipIcon: {
+    fontSize: 20,
+    marginBottom: 4,
+  },
+  summaryChipCount: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#1e293b',
+  },
+  summaryChipLabel: {
+    fontSize: 11,
+    color: '#475569',
+    marginTop: 2,
   },
 });

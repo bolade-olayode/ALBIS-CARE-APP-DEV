@@ -49,23 +49,15 @@ export default function VisitListScreen({ navigation, route }: VisitListScreenPr
       if (route.params?.staff_id) filters.staff_id = route.params.staff_id;
       if (route.params?.client_id) filters.client_id = route.params.client_id;
 
-      console.log('=== VISIT LIST DEBUG ===');
-      console.log('Filters:', filters);
-
       const response = await visitApi.getVisits(Object.keys(filters).length > 0 ? filters : undefined);
-
-      console.log('Visit API response:', JSON.stringify(response, null, 2));
-      console.log('Visits count:', response.data?.visits?.length);
 
       if (response.success && response.data) {
         setVisits(response.data.visits || []);
         setFilteredVisits(response.data.visits || []);
       } else {
-        console.log('Visit API failed:', response.message);
         Alert.alert('Error', response.message || 'Failed to load visits');
       }
     } catch (error: any) {
-      console.error('Visit load error:', error);
       Alert.alert('Error', error.message || 'Something went wrong');
     } finally {
       setLoading(false);

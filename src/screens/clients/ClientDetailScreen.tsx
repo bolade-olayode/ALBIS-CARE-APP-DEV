@@ -68,7 +68,7 @@ export default function ClientDetailScreen({ route, navigation }: ClientDetailSc
         setRelatives(relativesData);
       }
     } catch (error) {
-      console.error('Error loading relatives:', error);
+      // Relatives load failed silently
     } finally {
       setLoadingRelatives(false);
     }

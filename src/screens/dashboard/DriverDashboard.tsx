@@ -31,17 +31,9 @@ export default function DriverDashboard({ navigation, userData, onLogout }: Driv
     completed: 0,
   });
 
-  // DEBUG: Log userData to see structure
-  console.log('=== DRIVER DASHBOARD DEBUG ===');
-  console.log('Full userData:', JSON.stringify(userData, null, 2));
-
-  // Robust data extraction - check multiple possible locations for driver/staff ID
+  // Extract driver info from userData
   const driverId = userData?.staff_id || userData?.staff?.staff_id || userData?.id || userData?.user?.id || 0;
   const driverName = userData?.name || userData?.staff?.name || userData?.first_name || 'Driver';
-
-  console.log('Extracted driverId:', driverId);
-  console.log('Extracted driverName:', driverName);
-  console.log('==============================');
 
   useEffect(() => {
     loadDashboardData();
@@ -86,7 +78,7 @@ export default function DriverDashboard({ navigation, userData, onLogout }: Driv
       }
 
     } catch (error) {
-      console.error('Error loading dashboard:', error);
+      // Dashboard load failed silently
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -164,7 +156,7 @@ export default function DriverDashboard({ navigation, userData, onLogout }: Driv
           </View>
           <TouchableOpacity
             style={styles.profileButton}
-            onPress={() => Alert.alert('Profile', 'Profile management coming soon!')}
+            onPress={() => navigation.navigate('Profile')}
           >
             <Text style={styles.profileIcon}>👤</Text>
           </TouchableOpacity>
@@ -350,6 +342,17 @@ export default function DriverDashboard({ navigation, userData, onLogout }: Driv
             <View style={styles.actionContent}>
               <Text style={styles.actionTitle}>Full Schedule</Text>
               <Text style={styles.actionDescription}>View all assigned transports</Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.actionCard}
+            onPress={() => navigation?.navigate('ChangePassword')}
+          >
+            <Text style={styles.actionIcon}>🔑</Text>
+            <View style={styles.actionContent}>
+              <Text style={styles.actionTitle}>Change Password</Text>
+              <Text style={styles.actionDescription}>Update your login password</Text>
             </View>
           </TouchableOpacity>
 

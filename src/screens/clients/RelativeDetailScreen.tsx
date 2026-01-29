@@ -57,7 +57,6 @@ export default function RelativeDetailScreen({ route, navigation }: RelativeDeta
         Alert.alert('Error', response.message || 'Failed to load relative details');
       }
     } catch (error: any) {
-      console.error('Error loading relative details:', error);
       Alert.alert('Error', error.message || 'Something went wrong');
     } finally {
       setLoading(false);

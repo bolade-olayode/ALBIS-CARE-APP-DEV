@@ -16,49 +16,40 @@ const apiClient = axios.create({
 // Request interceptor - Add auth token to requests
 apiClient.interceptors.request.use(
   async (config) => {
-    // Get token from storage
     const token = await AsyncStorage.getItem('authToken');
-
-    console.log('=== API CLIENT REQUEST ===');
-    console.log('URL:', config.url);
-    console.log('Token exists:', !!token);
-    console.log('Token value:', token ? `${token.substring(0, 20)}...` : 'NULL');
-
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
-      console.log('Authorization header set:', config.headers.Authorization?.substring(0, 30) + '...');
-    } else {
-      console.log('WARNING: No token found in AsyncStorage!');
     }
-    console.log('==========================');
-
     return config;
   },
-  (error) => {
-    console.error('API Client Request Error:', error);
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 // Response interceptor - Handle errors
 apiClient.interceptors.response.use(
-  (response) => {
-    return response;
-  },
+  (response) => response,
   async (error) => {
-    console.log('=== API CLIENT ERROR ===');
-    console.log('Status:', error.response?.status);
-    console.log('Message:', error.response?.data?.message || error.message);
-    console.log('URL:', error.config?.url);
-    console.log('========================');
+    // Handle 401 Unauthorized - clear credentials and force re-login
+    if (error.response?.status === 401) {
+      await AsyncStorage.removeItem('authToken');
+      await AsyncStorage.removeItem('userData');
+      // The app will redirect to login on next navigation check
+    }
 
-    // DISABLED: Auto-clear was causing cascade failures
-    // The 401 was being triggered by header not reaching backend (server config issue)
-    // Only clear on explicit logout, not on API errors
-    // if (error.response?.status === 401) {
-    //   await AsyncStorage.removeItem('authToken');
-    //   await AsyncStorage.removeItem('userData');
-    // }
+    // Handle 403 Forbidden - access denied
+    if (error.response?.status === 403) {
+      error.message = 'Access denied. You do not have permission for this action.';
+    }
+
+    // Handle 429 Too Many Requests - rate limiting
+    if (error.response?.status === 429) {
+      error.message = 'Too many requests. Please wait and try again.';
+    }
+
+    // Handle 500+ Server errors
+    if (error.response?.status >= 500) {
+      error.message = 'Server error. Please try again later.';
+    }
 
     return Promise.reject(error);
   }

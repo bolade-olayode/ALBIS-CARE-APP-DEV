@@ -73,7 +73,7 @@ export default function SuperAdminDashboard({ userData, onLogout, navigation }: 
       }
 
     } catch (error) {
-      console.error('Error loading stats:', error);
+      // Stats load failed silently
     } finally {
       setLoading(false);
     }
@@ -176,7 +176,7 @@ export default function SuperAdminDashboard({ userData, onLogout, navigation }: 
 
           <TouchableOpacity
             style={[styles.actionCard, styles.superAdminCard]}
-            onPress={() => Alert.alert('System Settings', 'System configuration coming soon!')}
+            onPress={() => navigation.navigate('SystemSettings')}
           >
             <Text style={styles.actionIcon}>⚙️</Text>
             <View style={styles.actionContent}>
@@ -259,6 +259,35 @@ export default function SuperAdminDashboard({ userData, onLogout, navigation }: 
             <View style={styles.actionContent}>
               <Text style={styles.actionTitle}>Analytics & Reports</Text>
               <Text style={styles.actionDescription}>View insights and statistics</Text>
+            </View>
+            <Text style={styles.actionArrow}>→</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Account Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Account</Text>
+
+          <TouchableOpacity
+            style={styles.actionCard}
+            onPress={() => navigation.navigate('Profile')}
+          >
+            <Text style={styles.actionIcon}>👤</Text>
+            <View style={styles.actionContent}>
+              <Text style={styles.actionTitle}>My Profile</Text>
+              <Text style={styles.actionDescription}>View and edit your profile</Text>
+            </View>
+            <Text style={styles.actionArrow}>→</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.actionCard}
+            onPress={() => navigation.navigate('ChangePassword')}
+          >
+            <Text style={styles.actionIcon}>🔑</Text>
+            <View style={styles.actionContent}>
+              <Text style={styles.actionTitle}>Change Password</Text>
+              <Text style={styles.actionDescription}>Update your login password</Text>
             </View>
             <Text style={styles.actionArrow}>→</Text>
           </TouchableOpacity>

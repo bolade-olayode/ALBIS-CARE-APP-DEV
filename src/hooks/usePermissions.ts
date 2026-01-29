@@ -68,12 +68,10 @@ export function usePermissions(): UsePermissionsResult {
               delete: false
             }
           };
-          console.log('PERMISSIONS FIX: Granted VIEW access to relative for visits and logs');
         }
 
         setUserData(parsedUserData);
 
-        // Create permission checker
         const checker = createPermissionChecker(parsedUserData);
         setPermissions(checker);
       } else {
@@ -81,7 +79,6 @@ export function usePermissions(): UsePermissionsResult {
         setPermissions(null);
       }
     } catch (error) {
-      console.error('Error loading permissions:', error);
       setUserData(null);
       setPermissions(null);
     } finally {

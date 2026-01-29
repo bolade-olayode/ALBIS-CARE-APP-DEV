@@ -48,10 +48,8 @@ export default function RelativeDashboardScreen({ navigation }: any) {
 
       if (json.success) {
         setData(json.data);
-      } else {
-        // If no client is linked, data will be null, handled in render
-        console.log(json.message);
       }
+      // If no client is linked, data will be null, handled in render
     } catch (e) {
       Alert.alert('Error', 'Network error');
     } finally {

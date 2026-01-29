@@ -9,8 +9,6 @@ const LOGIN_URL = 'https://albiscare.co.uk/api/v1/auth/login.php';
 export const authApi = {
   login: async (email: string, password: string) => {
     try {
-      console.log('=== AUTH API: Starting Login ===');
-
       const response = await fetch(LOGIN_URL, {
         method: 'POST',
         headers: {
@@ -23,11 +21,7 @@ export const authApi = {
         }),
       });
 
-      // 1. Handle Non-JSON Server Crashes
       const text = await response.text();
-      console.log('=== AUTH API: Raw Response ===');
-      console.log('Response text:', text.substring(0, 500));
-
       let rawData;
       try {
         rawData = JSON.parse(text);
@@ -35,43 +29,22 @@ export const authApi = {
         throw new Error('Server Error: Invalid response format.');
       }
 
-      console.log('=== AUTH API: Parsed Response ===');
-      console.log('rawData:', JSON.stringify(rawData, null, 2));
-      console.log('rawData.data:', JSON.stringify(rawData.data, null, 2));
-      console.log('rawData.token:', rawData.token);
-      console.log('rawData.data?.token:', rawData.data?.token);
-
-      // 2. Check Success
       if (!response.ok || !rawData.success) {
         throw new Error(rawData.message || 'Login failed');
       }
 
-      // 3. NORMALIZE DATA HERE (The Fix)
-      // We extract the token and user right here, so the UI gets clean data.
+      // Normalize data - extract token and user
       const token = rawData.data?.token || rawData.token;
       const user = rawData.data?.user || rawData.user || rawData.data;
 
-      console.log('=== AUTH API: Extracted Values ===');
-      console.log('Extracted token:', token ? `${token.substring(0, 30)}...` : 'NULL/UNDEFINED');
-      console.log('Token type:', typeof token);
-      console.log('Token length:', token?.length);
-
       if (!token) {
-        console.error('!!! NO TOKEN IN RESPONSE !!!');
-        console.error('Check rawData structure above');
         throw new Error('Login successful but no token received.');
       }
 
-      // 4. ALSO store token here as backup (in case AppNavigator fails)
-      console.log('=== AUTH API: Storing token as backup ===');
+      // Store token as backup
       await AsyncStorage.setItem('authToken', token);
       await AsyncStorage.setItem('userData', JSON.stringify(user));
 
-      // Verify storage worked
-      const verifyToken = await AsyncStorage.getItem('authToken');
-      console.log('Backup storage verification:', verifyToken ? 'SUCCESS' : 'FAILED');
-
-      // 5. Return Clean Object
       return {
         success: true,
         token: token,
@@ -79,17 +52,36 @@ export const authApi = {
       };
 
     } catch (error: any) {
-      console.error('Auth API Error:', error);
       throw error;
     }
   },
 
   logout: async () => {
     try {
+      // Get token before clearing
+      const token = await AsyncStorage.getItem('authToken');
+
+      // Call server to invalidate session (fire and forget)
+      if (token) {
+        fetch('https://albiscare.co.uk/api/v1/auth/logout.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        }).catch(() => {
+          // Server logout failed - continue with local logout
+        });
+      }
+
+      // Clear local storage
       await AsyncStorage.removeItem('authToken');
       await AsyncStorage.removeItem('userData');
+      await AsyncStorage.removeItem('biometricCredentials');
     } catch (error) {
-      console.error('Logout error:', error);
+      // Logout error - still clear local storage
+      await AsyncStorage.removeItem('authToken');
+      await AsyncStorage.removeItem('userData');
     }
   },
 
@@ -109,6 +101,209 @@ export const authApi = {
         return JSON.parse(userDataString);
       }
       return null;
+    } catch (error) {
+      return null;
+    }
+  },
+
+  // Request password reset - sends OTP to email
+  requestPasswordReset: async (email: string) => {
+    try {
+      const response = await fetch('https://albiscare.co.uk/api/v1/auth/forgot-password.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+
+      const text = await response.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error('Server error. Please try again.');
+      }
+
+      return {
+        success: data.success || false,
+        message: data.message || 'Request processed',
+      };
+    } catch (error: any) {
+      throw error;
+    }
+  },
+
+  // Verify OTP code
+  verifyOTP: async (email: string, otp: string) => {
+    try {
+      const response = await fetch('https://albiscare.co.uk/api/v1/auth/verify-otp.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          email: email.trim(),
+          otp: otp.trim(),
+        }),
+      });
+
+      const text = await response.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error('Server error. Please try again.');
+      }
+
+      return {
+        success: data.success || false,
+        message: data.message || 'Verification processed',
+        resetToken: data.reset_token || null,
+      };
+    } catch (error: any) {
+      throw error;
+    }
+  },
+
+  // Reset password with token
+  resetPassword: async (email: string, resetToken: string, newPassword: string) => {
+    try {
+      const response = await fetch('https://albiscare.co.uk/api/v1/auth/reset-password.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          email: email.trim(),
+          reset_token: resetToken,
+          new_password: newPassword,
+        }),
+      });
+
+      const text = await response.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error('Server error. Please try again.');
+      }
+
+      return {
+        success: data.success || false,
+        message: data.message || 'Password reset processed',
+      };
+    } catch (error: any) {
+      throw error;
+    }
+  },
+
+  // Store biometric preference
+  setBiometricEnabled: async (enabled: boolean) => {
+    try {
+      await AsyncStorage.setItem('biometricEnabled', JSON.stringify(enabled));
+    } catch (error) {
+      // Silently handle storage error
+    }
+  },
+
+  // Get biometric preference
+  isBiometricEnabled: async () => {
+    try {
+      const value = await AsyncStorage.getItem('biometricEnabled');
+      return value ? JSON.parse(value) : false;
+    } catch (error) {
+      return false;
+    }
+  },
+
+  // Store credentials for biometric login
+  storeCredentialsForBiometric: async (email: string, password: string) => {
+    try {
+      await AsyncStorage.setItem('biometricCredentials', JSON.stringify({ email, password }));
+    } catch (error) {
+      // Silently handle storage error
+    }
+  },
+
+  // Get stored credentials for biometric login
+  getBiometricCredentials: async () => {
+    try {
+      const value = await AsyncStorage.getItem('biometricCredentials');
+      return value ? JSON.parse(value) : null;
+    } catch (error) {
+      return null;
+    }
+  },
+
+  // Clear biometric credentials
+  clearBiometricCredentials: async () => {
+    try {
+      await AsyncStorage.removeItem('biometricCredentials');
+      await AsyncStorage.removeItem('biometricEnabled');
+    } catch (error) {
+      // Silently handle storage error
+    }
+  },
+
+  // Change password (for logged-in users)
+  changePassword: async (currentPassword: string, newPassword: string) => {
+    try {
+      const token = await AsyncStorage.getItem('authToken');
+      if (!token) {
+        throw new Error('Not authenticated. Please log in again.');
+      }
+
+      const response = await fetch('https://albiscare.co.uk/api/v1/auth/change-password.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          current_password: currentPassword,
+          new_password: newPassword,
+        }),
+      });
+
+      const text = await response.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error('Server error. Please try again.');
+      }
+
+      return {
+        success: data.success || false,
+        message: data.message || 'Password change processed',
+      };
+    } catch (error: any) {
+      throw error;
+    }
+  },
+
+  // Remember email preference
+  setRememberedEmail: async (email: string | null) => {
+    try {
+      if (email) {
+        await AsyncStorage.setItem('rememberedEmail', email);
+      } else {
+        await AsyncStorage.removeItem('rememberedEmail');
+      }
+    } catch (error) {
+      // Silently handle storage error
+    }
+  },
+
+  // Get remembered email
+  getRememberedEmail: async () => {
+    try {
+      return await AsyncStorage.getItem('rememberedEmail');
     } catch (error) {
       return null;
     }

@@ -98,7 +98,7 @@ export default function ClientListScreen({ navigation }: ClientListScreenProps) 
         setClients(sortedClients);
       }
     } catch (error) {
-      console.error('Search error:', error);
+      // Search failed silently
     }
   };
 

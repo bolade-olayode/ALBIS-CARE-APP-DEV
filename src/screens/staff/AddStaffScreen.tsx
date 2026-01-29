@@ -11,6 +11,7 @@ import {
   Alert,
   Platform,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { ScreenWrapper, FormScrollView } from '../../components';
 import { staffApi } from '../../services/api/staffApi';
@@ -18,12 +19,30 @@ import { formatDate, parseDate } from '../../utils/dateFormatter';
 
 interface AddStaffScreenProps {
   navigation: any;
+  route: any;
 }
 
-export default function AddStaffScreen({ navigation }: AddStaffScreenProps) {
+export default function AddStaffScreen({ navigation, route }: AddStaffScreenProps) {
+  // Check route params to determine if creating admin or care manager
+  const createAdmin = route.params?.createAdmin || false;
+  const createCareManager = route.params?.createCareManager || false;
+
+  // Determine initial role_id and screen mode
+  const getInitialRoleId = () => {
+    if (createAdmin) return 5; // Admin role
+    if (createCareManager) return 1; // Care Manager role
+    return 2; // Default to Carer
+  };
+
+  const getScreenTitle = () => {
+    if (createAdmin) return 'Create Admin';
+    if (createCareManager) return 'Create Care Manager';
+    return 'Add Staff';
+  };
+
   const [loading, setLoading] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  
+
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
@@ -31,7 +50,8 @@ export default function AddStaffScreen({ navigation }: AddStaffScreenProps) {
     mobile: '',
     email: '',
     password: '',
-    role_id: 2,
+    role_id: getInitialRoleId(),
+    is_admin: createAdmin, // Set is_admin flag for admin users
     address_line1: '',
     address_line2: '',
     town: '',
@@ -86,16 +106,28 @@ export default function AddStaffScreen({ navigation }: AddStaffScreenProps) {
       const response = await staffApi.createStaff(submitData);
 
       if (response.success) {
-        const loginMethods = formData.email 
-          ? `📱 Mobile: ${formData.mobile}\n📧 Email: ${formData.email}`
-          : `📱 Mobile: ${formData.mobile}`;
-          
+        const loginIdentifier = formData.email || formData.mobile;
+        const userType = createAdmin ? 'Administrator' : createCareManager ? 'Care Manager' : 'Staff Member';
+
+        // Prepare credentials text for copying
+        const credentialsText = `Albis Care Login\nUsername: ${loginIdentifier}\nPassword: ${formData.password}`;
+
         Alert.alert(
-          'Staff Member Created!',
-          `Login Credentials:\n\n${loginMethods}\n🔑 Password: ${formData.password}\n\n⚠️ Please share these credentials securely.\n\n💡 They should change this password after first login.`,
+          `${userType} Created!`,
+          `Login Credentials:\n\n📧 Username: ${loginIdentifier}\n🔑 Password: ••••••••\n\n⚠️ Tap "Copy Credentials" to copy and share securely.\n\n💡 They should change this password after first login.`,
           [
             {
-              text: 'OK',
+              text: 'Copy Credentials',
+              onPress: async () => {
+                await Clipboard.setStringAsync(credentialsText);
+                Alert.alert('Copied!', 'Login credentials copied to clipboard. Share securely with the staff member.', [
+                  { text: 'Done', onPress: () => navigation.goBack() }
+                ]);
+              },
+            },
+            {
+              text: 'Skip',
+              style: 'cancel',
               onPress: () => navigation.goBack(),
             },
           ]
@@ -122,7 +154,7 @@ export default function AddStaffScreen({ navigation }: AddStaffScreenProps) {
             <Text style={styles.cancelText}>Cancel</Text>
           </TouchableOpacity>
           
-          <Text style={styles.headerTitle} numberOfLines={1}>Add Staff</Text>
+          <Text style={styles.headerTitle} numberOfLines={1}>{getScreenTitle()}</Text>
           
           <TouchableOpacity
             style={[styles.saveButton, loading && styles.saveButtonDisabled]}
@@ -158,39 +190,65 @@ export default function AddStaffScreen({ navigation }: AddStaffScreenProps) {
           />
         </View>
 
-        {/* Role Selection */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Role</Text>
-          <View style={styles.radioGroup}>
-            {[
-              { value: 1, label: '🔴 Care Manager', color: '#fee2e2' },
-              { value: 2, label: '🔵 Carer', color: '#dbeafe' },
-              { value: 3, label: '🟢 Nurse', color: '#d1fae5' },
-              { value: 4, label: '🟡 Driver', color: '#fef3c7' },
-            ].map((role) => (
-              <TouchableOpacity
-                key={role.value}
-                style={[
-                  styles.roleButton,
-                  formData.role_id === role.value && {
-                    backgroundColor: role.color,
-                    borderColor: role.color,
-                  },
-                ]}
-                onPress={() => updateField('role_id', role.value)}
-              >
-                <Text
-                  style={[
-                    styles.roleButtonText,
-                    formData.role_id === role.value && styles.roleButtonTextActive,
-                  ]}
-                >
-                  {role.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+        {/* Role Selection - Show different options based on creation mode */}
+        {createAdmin ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Role</Text>
+            <View style={[styles.roleButton, { backgroundColor: '#f3e8ff', borderColor: '#7c3aed' }]}>
+              <Text style={[styles.roleButtonText, styles.roleButtonTextActive]}>
+                👑 Administrator
+              </Text>
+            </View>
+            <Text style={styles.hintText}>
+              This user will have full admin access to the system.
+            </Text>
           </View>
-        </View>
+        ) : createCareManager ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Role</Text>
+            <View style={[styles.roleButton, { backgroundColor: '#fee2e2', borderColor: '#fee2e2' }]}>
+              <Text style={[styles.roleButtonText, styles.roleButtonTextActive]}>
+                🔴 Care Manager
+              </Text>
+            </View>
+            <Text style={styles.hintText}>
+              This user will be able to manage clients and schedule visits.
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Role</Text>
+            <View style={styles.radioGroup}>
+              {[
+                { value: 1, label: '🔴 Care Manager', color: '#fee2e2' },
+                { value: 2, label: '🔵 Carer', color: '#dbeafe' },
+                { value: 3, label: '🟢 Nurse', color: '#d1fae5' },
+                { value: 4, label: '🟡 Driver', color: '#fef3c7' },
+              ].map((role) => (
+                <TouchableOpacity
+                  key={role.value}
+                  style={[
+                    styles.roleButton,
+                    formData.role_id === role.value && {
+                      backgroundColor: role.color,
+                      borderColor: role.color,
+                    },
+                  ]}
+                  onPress={() => updateField('role_id', role.value)}
+                >
+                  <Text
+                    style={[
+                      styles.roleButtonText,
+                      formData.role_id === role.value && styles.roleButtonTextActive,
+                    ]}
+                  >
+                    {role.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
 
         {/* Contact Information & Login */}
         <View style={styles.section}>

@@ -15,11 +15,13 @@ import {
   ScrollView,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { ScreenWrapper, FormScrollView } from '../../components';
+import { ScreenWrapper, FormScrollView, SearchablePickerModal, PickerItem } from '../../components';
 import { visitApi } from '../../services/api/visitApi';
 import { clientApi } from '../../services/api/clientApi';
 import { staffApi } from '../../services/api/staffApi';
 import { formatDate, parseDate } from '../../utils/dateFormatter';
+
+type PickerType = 'client' | 'staff' | 'driver' | null;
 
 interface ScheduleVisitScreenProps {
   navigation: any;
@@ -31,6 +33,9 @@ export default function ScheduleVisitScreen({ navigation }: ScheduleVisitScreenP
   const [staff, setStaff] = useState<any[]>([]);
   const [drivers, setDrivers] = useState<any[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+
+  // Searchable Picker State
+  const [activePicker, setActivePicker] = useState<PickerType>(null);
 
   // Date Picker State
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -84,7 +89,7 @@ export default function ScheduleVisitScreen({ navigation }: ScheduleVisitScreenP
         setDrivers(driverList);
       }
     } catch (error) {
-      console.error('Error loading data:', error);
+      // Data load failed silently
     } finally {
       setLoadingData(false);
     }
@@ -92,6 +97,64 @@ export default function ScheduleVisitScreen({ navigation }: ScheduleVisitScreenP
 
   const updateField = (field: string, value: any) => {
     setFormData({ ...formData, [field]: value });
+  };
+
+  // Transform data for SearchablePickerModal
+  const clientPickerItems: PickerItem[] = clients.map(c => ({
+    id: c.cNo.toString(),
+    label: `${c.cFName} ${c.cLName}`,
+    sublabel: c.cAddress || c.cPostCode || undefined,
+    icon: '👤',
+    data: c,
+  }));
+
+  // Helper to normalize role names for display
+  const normalizeRoleName = (role: string | undefined): string => {
+    if (!role) return 'Staff';
+    const lower = role.toLowerCase();
+    if (lower.includes('care_manager') || lower.includes('care manager')) return 'Care Manager';
+    if (lower.includes('care_assistant') || lower.includes('care assistant')) return 'Carer';
+    if (lower.includes('carer')) return 'Carer';
+    if (lower.includes('nurse')) return 'Nurse';
+    if (lower.includes('driver')) return 'Driver';
+    if (lower.includes('admin')) return 'Admin';
+    // Capitalize first letter of each word
+    return role.split(/[_\s]+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+  };
+
+  // Filter staff to only include carers who can perform visits (exclude drivers & admins)
+  const careStaff = staff.filter((s: any) => {
+    const role = (s.role_name || s.staff_role || '').toLowerCase();
+    const isDriver = role.includes('driver');
+    const isAdmin = role.includes('admin') || s.is_admin;
+    return !isDriver && !isAdmin;
+  });
+
+  const staffPickerItems: PickerItem[] = careStaff.map(s => ({
+    id: s.id.toString(),
+    label: s.name,
+    sublabel: normalizeRoleName(s.role_name || s.staff_role),
+    icon: '👨‍⚕️',
+    data: s,
+  }));
+
+  const driverPickerItems: PickerItem[] = drivers.map(d => ({
+    id: d.id.toString(),
+    label: d.name,
+    sublabel: 'Driver',
+    icon: '🚗',
+    data: d,
+  }));
+
+  const handlePickerSelect = (item: PickerItem) => {
+    if (activePicker === 'client') {
+      updateField('client_id', item.id.toString());
+    } else if (activePicker === 'staff') {
+      updateField('staff_id', item.id.toString());
+    } else if (activePicker === 'driver') {
+      updateField('driver_id', item.id.toString());
+    }
+    setActivePicker(null);
   };
 
   // Open Picker Helper
@@ -225,16 +288,10 @@ export default function ScheduleVisitScreen({ navigation }: ScheduleVisitScreenP
           <Text style={styles.label}>Client *</Text>
           <TouchableOpacity
             style={styles.selectButton}
-            onPress={() => {
-              const options = clients.map(c => ({ 
-                text: `${c.cFName} ${c.cLName}`, 
-                onPress: () => updateField('client_id', c.cNo.toString()) 
-              }));
-              Alert.alert('Select Client', 'Choose a client', [...options, { text: 'Cancel', style: 'cancel' }]);
-            }}
+            onPress={() => setActivePicker('client')}
           >
             <Text style={formData.client_id ? styles.selectButtonTextFilled : styles.selectButtonText}>
-              {formData.client_id 
+              {formData.client_id
                 ? (() => {
                     const client = clients.find(c => c.cNo.toString() === formData.client_id);
                     return client ? `${client.cFName} ${client.cLName}` : 'Select Client...';
@@ -247,17 +304,11 @@ export default function ScheduleVisitScreen({ navigation }: ScheduleVisitScreenP
           <Text style={styles.label}>Carer (Staff Member) *</Text>
           <TouchableOpacity
             style={styles.selectButton}
-            onPress={() => {
-              const options = staff.map(s => ({ 
-                text: s.name, 
-                onPress: () => updateField('staff_id', s.id.toString()) 
-              }));
-              Alert.alert('Select Staff', 'Choose a staff member', [...options, { text: 'Cancel', style: 'cancel' }]);
-            }}
+            onPress={() => setActivePicker('staff')}
           >
             <Text style={formData.staff_id ? styles.selectButtonTextFilled : styles.selectButtonText}>
-              {formData.staff_id 
-                ? staff.find(s => s.id.toString() === formData.staff_id)?.name 
+              {formData.staff_id
+                ? staff.find(s => s.id.toString() === formData.staff_id)?.name
                 : 'Select Staff Member...'}
             </Text>
             <Text style={styles.selectButtonIcon}>▼</Text>
@@ -359,21 +410,16 @@ export default function ScheduleVisitScreen({ navigation }: ScheduleVisitScreenP
               <TouchableOpacity
                 style={styles.selectButton}
                 onPress={() => {
-                  const options = drivers.map(d => ({ 
-                    text: d.name, 
-                    onPress: () => updateField('driver_id', d.id.toString()) 
-                  }));
-                  
                   if (drivers.length === 0) {
                     Alert.alert('No Drivers', 'No staff members with "Driver" role found.');
                   } else {
-                    Alert.alert('Select Driver', 'Choose a driver', [...options, { text: 'Cancel', style: 'cancel' }]);
+                    setActivePicker('driver');
                   }
                 }}
               >
                 <Text style={formData.driver_id ? styles.selectButtonTextFilled : styles.selectButtonText}>
-                  {formData.driver_id 
-                    ? drivers.find(d => d.id.toString() === formData.driver_id)?.name 
+                  {formData.driver_id
+                    ? drivers.find(d => d.id.toString() === formData.driver_id)?.name
                     : 'Select Driver...'}
                 </Text>
                 <Text style={styles.selectButtonIcon}>▼</Text>
@@ -517,6 +563,45 @@ export default function ScheduleVisitScreen({ navigation }: ScheduleVisitScreenP
             />
           )
         )}
+
+        {/* Searchable Picker Modals */}
+        <SearchablePickerModal
+          visible={activePicker === 'client'}
+          onClose={() => setActivePicker(null)}
+          onSelect={handlePickerSelect}
+          items={clientPickerItems}
+          title="Select Client"
+          placeholder="Search by name or address..."
+          selectedId={formData.client_id || null}
+          emptyMessage="No clients found"
+          accentColor="#2563eb"
+        />
+
+        <SearchablePickerModal
+          visible={activePicker === 'staff'}
+          onClose={() => setActivePicker(null)}
+          onSelect={handlePickerSelect}
+          items={staffPickerItems}
+          title="Select Staff Member"
+          placeholder="Search by name or role..."
+          selectedId={formData.staff_id || null}
+          emptyMessage="No staff members found"
+          accentColor="#2563eb"
+          groupByField="sublabel"
+          sectionOrder={['Care Manager', 'Carer', 'Nurse']}
+        />
+
+        <SearchablePickerModal
+          visible={activePicker === 'driver'}
+          onClose={() => setActivePicker(null)}
+          onSelect={handlePickerSelect}
+          items={driverPickerItems}
+          title="Select Driver"
+          placeholder="Search drivers..."
+          selectedId={formData.driver_id || null}
+          emptyMessage="No drivers found"
+          accentColor="#f59e0b"
+        />
       </FormScrollView>
     </ScreenWrapper>
   );

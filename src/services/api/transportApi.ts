@@ -55,18 +55,11 @@ export const transportApi = {
       if (filters?.status) params.append('status', filters.status);
 
       const queryString = params.toString();
-      // Use full path with /v1/ prefix for shared apiClient
       const url = queryString
         ? `/v1/transport/index.php?${queryString}`
         : '/v1/transport/index.php';
 
-      console.log('=== TRANSPORT API DEBUG ===');
-      console.log('Fetching transports with URL:', url);
-      console.log('Filters:', filters);
-
       const response = await apiClient.get(url);
-      console.log('Transport response:', response.data);
-      console.log('===========================');
       return response.data;
     } catch (error: any) {
       return {

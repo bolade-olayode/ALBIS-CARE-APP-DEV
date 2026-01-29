@@ -47,7 +47,7 @@ export default function VisitDetailScreen({ route, navigation }: VisitDetailScre
         setCurrentUser(JSON.parse(jsonValue));
       }
     } catch (e) {
-      console.error("Failed to load user", e);
+      // User load failed silently
     }
   };
 

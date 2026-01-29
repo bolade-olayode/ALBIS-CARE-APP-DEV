@@ -37,12 +37,8 @@ export default function AnalyticsScreen({ navigation }: any) {
     try {
       setLoading(true);
 
-      // Get auth token
       const token = await AsyncStorage.getItem('authToken');
-      console.log('=== ANALYTICS DEBUG ===');
-      console.log('Token exists:', !!token);
 
-      // Pass the range to the backend WITH auth header
       const response = await fetch(`https://albiscare.co.uk/api/v1/analytics/dashboard.php?range=${selectedRange}`, {
         method: 'GET',
         headers: {
@@ -52,7 +48,6 @@ export default function AnalyticsScreen({ navigation }: any) {
       });
 
       const json = await response.json();
-      console.log('Analytics response:', JSON.stringify(json, null, 2));
 
       if (json.success) {
         setData(json.data);
@@ -60,7 +55,6 @@ export default function AnalyticsScreen({ navigation }: any) {
         Alert.alert('Error', json.message || 'Failed to load analytics');
       }
     } catch (e: any) {
-      console.error('Analytics error:', e);
       Alert.alert('Error', 'Network error: ' + e.message);
     } finally {
       setLoading(false);

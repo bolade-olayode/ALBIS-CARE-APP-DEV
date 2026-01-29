@@ -18,11 +18,6 @@ interface RelativeDashboardProps {
 }
 
 export default function RelativeDashboard({ userData, onLogout, navigation }: RelativeDashboardProps) {
-  // DEBUG: Log userData to diagnose issues
-  console.log('=== RELATIVE DASHBOARD DEBUG ===');
-  console.log('Full userData:', JSON.stringify(userData, null, 2));
-  console.log('================================');
-
   const handleLogout = () => {
     Alert.alert(
       'Logout',
@@ -36,11 +31,7 @@ export default function RelativeDashboard({ userData, onLogout, navigation }: Re
 
   const user = userData.user || userData;
   const relativeName = userData.name || userData.relative?.name || userData.user?.name || user?.name || 'Family Member';
-  // Get the linked care user ID (client_id) that this relative is connected to
   const linkedClientId = userData.client_id || userData.relative?.client_id || userData.cNo || user?.client_id;
-
-  console.log('Relative Name:', relativeName);
-  console.log('Linked Client ID:', linkedClientId);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -93,6 +84,19 @@ export default function RelativeDashboard({ userData, onLogout, navigation }: Re
           >
             <Text style={styles.actionTitle}>📋 Care Logs</Text>
             <Text style={styles.actionDescription}>Review care visit logs</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Account Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Account</Text>
+
+          <TouchableOpacity
+            style={styles.actionCard}
+            onPress={() => navigation.navigate('ChangePassword')}
+          >
+            <Text style={styles.actionTitle}>🔑 Change Password</Text>
+            <Text style={styles.actionDescription}>Update your login password</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

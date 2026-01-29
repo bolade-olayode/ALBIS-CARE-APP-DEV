@@ -81,7 +81,7 @@ export default function AddCareLogScreen({ navigation }: AddCareLogScreenProps) 
         setStaff(staffResponse.data?.staff || []);
       }
     } catch (error) {
-      console.error('Error loading data:', error);
+      // Data load failed silently
     } finally {
       setLoadingData(false);
     }

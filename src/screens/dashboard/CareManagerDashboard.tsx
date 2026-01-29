@@ -1,6 +1,6 @@
 // src/screens/dashboard/CareManagerDashboard.tsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,11 +8,12 @@ import {
   TouchableOpacity,
   ScrollView,
   SafeAreaView,
+  Alert,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback } from 'react';
-import { staffApi } from '../../services/api/staffApi';
 import { clientApi } from '../../services/api/clientApi';
+import { visitApi } from '../../services/api/visitApi';
 
 interface CareManagerDashboardProps {
   userData: any;
@@ -22,8 +23,11 @@ interface CareManagerDashboardProps {
 
 export default function CareManagerDashboard({ userData, onLogout, navigation }: CareManagerDashboardProps) {
   const [clientCount, setClientCount] = useState<number>(0);
-  const [staffCount, setStaffCount] = useState<number>(0);
+  const [todayVisits, setTodayVisits] = useState<number>(0);
   const [loading, setLoading] = useState(true);
+
+  // Get care manager name
+  const managerName = userData?.name || userData?.staff?.name || userData?.email || 'Care Manager';
 
   useFocusEffect(
     useCallback(() => {
@@ -34,28 +38,34 @@ export default function CareManagerDashboard({ userData, onLogout, navigation }:
 
   const loadStats = async () => {
     try {
-      console.log('=== CareManagerDashboard: Loading Stats ===');
-
-      // Load client count using apiClient (includes Authorization header automatically)
+      // Load client count
       const clientData = await clientApi.getClients();
-      console.log('Client data response:', clientData);
       if (clientData.success) {
         setClientCount(clientData.data?.total || 0);
       }
 
-      // Load staff count using apiClient (includes Authorization header automatically)
-      const staffData = await staffApi.getStaff();
-      console.log('Staff data response:', staffData);
-      if (staffData.success) {
-        setStaffCount(staffData.data?.total || 0);
+      // Load today's visits count
+      const today = new Date().toISOString().split('T')[0];
+      const visitsData = await visitApi.getVisits({ start_date: today, end_date: today });
+      if (visitsData.success) {
+        setTodayVisits(visitsData.data?.visits?.length || 0);
       }
-
-      console.log('=== CareManagerDashboard: Stats Loaded ===');
     } catch (error) {
-      console.error('Error loading stats:', error);
+      // Stats load failed silently
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Logout', style: 'destructive', onPress: onLogout },
+      ]
+    );
   };
 
   return (
@@ -65,11 +75,12 @@ export default function CareManagerDashboard({ userData, onLogout, navigation }:
         <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>Welcome back,</Text>
-            <Text style={styles.roleBadge}>
-              {userData?.name || userData?.staff?.name || userData?.email || 'Care Manager'}
-            </Text>
+            <Text style={styles.roleBadge}>{managerName}</Text>
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>CARE MANAGER</Text>
+            </View>
           </View>
-          <TouchableOpacity style={styles.logoutButton} onPress={onLogout}>
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
             <Text style={styles.logoutText}>Logout</Text>
           </TouchableOpacity>
         </View>
@@ -82,12 +93,7 @@ export default function CareManagerDashboard({ userData, onLogout, navigation }:
           </View>
 
           <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{loading ? '...' : staffCount}</Text>
-            <Text style={styles.statLabel}>Active Staff</Text>
-          </View>
-
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>0</Text>
+            <Text style={styles.statNumber}>{loading ? '...' : todayVisits}</Text>
             <Text style={styles.statLabel}>Today's Visits</Text>
           </View>
         </View>
@@ -101,19 +107,8 @@ export default function CareManagerDashboard({ userData, onLogout, navigation }:
         >
           <Text style={styles.actionIcon}>👥</Text>
           <View style={styles.actionContent}>
-            <Text style={styles.actionTitle}>View Clients</Text>
-            <Text style={styles.actionDescription}>View care users</Text>
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.actionCard}
-          onPress={() => navigation.navigate('StaffList')}
-        >
-          <Text style={styles.actionIcon}>👨‍⚕️</Text>
-          <View style={styles.actionContent}>
-            <Text style={styles.actionTitle}>View Staff</Text>
-            <Text style={styles.actionDescription}>View staff members</Text>
+            <Text style={styles.actionTitle}>Manage Clients</Text>
+            <Text style={styles.actionDescription}>View and manage care users</Text>
           </View>
         </TouchableOpacity>
 
@@ -124,7 +119,7 @@ export default function CareManagerDashboard({ userData, onLogout, navigation }:
           <Text style={styles.actionIcon}>📅</Text>
           <View style={styles.actionContent}>
             <Text style={styles.actionTitle}>Schedule Visits</Text>
-            <Text style={styles.actionDescription}>Assign care visits</Text>
+            <Text style={styles.actionDescription}>Assign care visits to staff</Text>
           </View>
         </TouchableOpacity>
 
@@ -135,7 +130,7 @@ export default function CareManagerDashboard({ userData, onLogout, navigation }:
           <Text style={styles.actionIcon}>🚗</Text>
           <View style={styles.actionContent}>
             <Text style={styles.actionTitle}>Transport</Text>
-            <Text style={styles.actionDescription}>Assign transport schedules</Text>
+            <Text style={styles.actionDescription}>Manage transport schedules</Text>
           </View>
         </TouchableOpacity>
 
@@ -150,14 +145,28 @@ export default function CareManagerDashboard({ userData, onLogout, navigation }:
           </View>
         </TouchableOpacity>
 
+        {/* Profile Section */}
+        <Text style={styles.sectionTitle}>Account</Text>
+
         <TouchableOpacity
           style={styles.actionCard}
-          onPress={() => navigation.navigate('Analytics')}
+          onPress={() => navigation.navigate('Profile')}
         >
-          <Text style={styles.actionIcon}>📊</Text>
+          <Text style={styles.actionIcon}>👤</Text>
           <View style={styles.actionContent}>
-            <Text style={styles.actionTitle}>View Reports</Text>
-            <Text style={styles.actionDescription}>Analytics and insights</Text>
+            <Text style={styles.actionTitle}>My Profile</Text>
+            <Text style={styles.actionDescription}>View and edit your profile</Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.actionCard}
+          onPress={() => navigation.navigate('ChangePassword')}
+        >
+          <Text style={styles.actionIcon}>🔑</Text>
+          <View style={styles.actionContent}>
+            <Text style={styles.actionTitle}>Change Password</Text>
+            <Text style={styles.actionDescription}>Update your login password</Text>
           </View>
         </TouchableOpacity>
       </ScrollView>
@@ -190,6 +199,20 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: 'white',
+  },
+  badge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginTop: 8,
+    alignSelf: 'flex-start',
+  },
+  badgeText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: 'white',
+    letterSpacing: 1,
   },
   logoutButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',

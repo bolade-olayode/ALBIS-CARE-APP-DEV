@@ -13,6 +13,8 @@ export interface Staff {
   mobile?: string;
   role_id: number;
   role_name?: string;
+  is_admin?: boolean;
+  is_super_admin?: boolean;
   address_line1?: string;
   address_line2?: string;
   town?: string;

@@ -63,7 +63,6 @@ export async function login(email: string, password: string): Promise<AuthRespon
       };
     }
   } catch (error: any) {
-    console.error('Login error:', error);
     return {
       success: false,
       error: getAuthErrorMessage(error.code)
@@ -76,7 +75,6 @@ export async function logout(): Promise<void> {
   try {
     await signOut(auth);
   } catch (error) {
-    console.error('Logout error:', error);
     throw error;
   }
 }
