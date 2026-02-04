@@ -125,11 +125,11 @@ export default function StaffDetailScreen({ route, navigation }: StaffDetailScre
       <ScreenWrapper>
         <View style={styles.centerContainer}>
           <Text style={styles.errorText}>Staff member not found</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.backButton}
-            onPress={() => navigation.goBack()}
+            onPress={() => navigation.navigate('StaffList')}
           >
-            <Text style={styles.backButtonText}>← Go Back</Text>
+            <Text style={styles.backButtonText}>← Back to Staff List</Text>
           </TouchableOpacity>
         </View>
       </ScreenWrapper>

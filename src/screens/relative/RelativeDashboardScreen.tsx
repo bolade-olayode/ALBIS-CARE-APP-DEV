@@ -129,12 +129,12 @@ export default function RelativeDashboardScreen({ navigation }: any) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Latest Status</Text>
           {data?.status ? (
-            <View style={[styles.statusCard, 
-              data.status.status === 'in_progress' ? styles.activeBorder : styles.scheduledBorder
+            <View style={[styles.statusCard,
+              data.status.status?.toLowerCase() === 'in_progress' ? styles.activeBorder : styles.scheduledBorder
             ]}>
               <View style={styles.statusRow}>
                 <Text style={styles.statusLabel}>
-                  {data.status.status === 'in_progress' ? '🟢 CARER IS PRESENT' : '📅 NEXT VISIT'}
+                  {data.status.status?.toLowerCase() === 'in_progress' ? '🟢 CARER IS PRESENT' : '📅 NEXT VISIT'}
                 </Text>
                 <Text style={styles.statusTime}>
                   {formatDate(data.status.visit_date)} @ {data.status.visit_time?.substring(0,5)}

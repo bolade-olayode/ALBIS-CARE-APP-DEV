@@ -3,6 +3,7 @@ import { View, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { notificationService } from '../services/notificationService';
 
 // --- AUTH ---
 import LoginScreen from '../screens/auth/LoginScreen';
@@ -56,7 +57,11 @@ import ChangePasswordScreen from '../screens/profile/ChangePasswordScreen';
 
 const Stack = createNativeStackNavigator();
 
-export default function AppNavigator() {
+interface AppNavigatorProps {
+  navigationRef?: React.RefObject<any>;
+}
+
+export default function AppNavigator({ navigationRef }: AppNavigatorProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [userToken, setUserToken] = useState<string | null>(null);
   const [userData, setUserData] = useState<any>(null);
@@ -98,13 +103,32 @@ export default function AppNavigator() {
       setUserToken(token);
       setUserData(data);
 
+      // Register for push notifications after successful login
+      registerPushNotifications();
+
     } catch (error: any) {
       throw error;
     }
   };
 
+  // Register device for push notifications
+  const registerPushNotifications = async () => {
+    try {
+      const expoPushToken = await notificationService.registerForPushNotifications();
+      if (expoPushToken) {
+        await notificationService.registerTokenWithBackend(expoPushToken);
+      }
+    } catch (error) {
+      console.log('Push notification registration failed:', error);
+      // Don't block login if push registration fails
+    }
+  };
+
   const handleLogout = async () => {
     try {
+      // Unregister push token before logout
+      await notificationService.unregisterToken();
+
       await AsyncStorage.removeItem('authToken');
       await AsyncStorage.removeItem('userData');
       setUserToken(null);
@@ -147,7 +171,7 @@ export default function AppNavigator() {
   const DashboardComponent = getDashboardComponent();
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator 
         screenOptions={{ 
           headerShown: false,

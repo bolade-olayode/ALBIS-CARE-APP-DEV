@@ -68,7 +68,7 @@ export default function VisitExecutionScreen({ navigation, route }: VisitExecuti
         setVisit(response.data.visit);
         
         // If visit is already in progress, set clocked in
-        if (response.data.visit.status === 'in_progress') {
+        if (response.data.visit.status?.toLowerCase() === 'in_progress') {
           setClockedIn(true);
           setStartTime(new Date()); // In production, fetch actual start time from DB
         }

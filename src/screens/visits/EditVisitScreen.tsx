@@ -87,7 +87,7 @@ export default function EditVisitScreen({ navigation, route }: EditVisitScreenPr
           service_type: visit.service_type || '',
           special_instructions: visit.special_instructions || '',
           priority: visit.priority || 'normal',
-          status: visit.status || 'scheduled',
+          status: visit.status?.toLowerCase() || 'scheduled',
           notes: visit.notes || '',
           cancellation_reason: visit.cancellation_reason || '',
           // Check if transport data exists in the visit object

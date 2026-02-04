@@ -81,18 +81,44 @@ export default function ProfileScreen({ navigation, userData }: ProfileScreenPro
   }, [staffId]);
 
   const loadProfile = async () => {
-    if (!staffId) {
-      Alert.alert('Error', 'User ID not found. Please log in again.');
-      return;
-    }
-
     try {
       setLoading(true);
+
+      // For super admins without staff record, use userData directly
+      if (userRole === 'super_admin' && !staffId) {
+        setProfile({
+          id: 0,
+          name: userData?.name || userData?.email || 'Super Admin',
+          first_name: userData?.name?.split(' ')[0] || 'Super',
+          last_name: userData?.name?.split(' ').slice(1).join(' ') || 'Admin',
+          email: userData?.email || '',
+          phone: '',
+          mobile: '',
+          address_line1: '',
+          address_line2: '',
+          town: '',
+          postcode: '',
+          role_name: 'Super Administrator',
+          employment_type: 'Full Time',
+          joined_date: userData?.created_at || '',
+          emergency_contact_name: '',
+          emergency_contact_phone: '',
+        });
+        setLoading(false);
+        return;
+      }
+
+      if (!staffId) {
+        Alert.alert('Error', 'User ID not found. Please log in again.');
+        setLoading(false);
+        return;
+      }
+
       const response = await staffApi.getStaffMember(staffId);
 
       if (response.success && response.data) {
         const staffData = response.data.staff || response.data;
-        
+
         setProfile({
           id: staffData.id || staffData.staff_id,
           name: staffData.name || `${staffData.first_name || ''} ${staffData.last_name || ''}`.trim(),
@@ -112,10 +138,46 @@ export default function ProfileScreen({ navigation, userData }: ProfileScreenPro
           emergency_contact_phone: staffData.emergency_contact_phone || '',
         });
       } else {
-        Alert.alert('Error', 'Failed to load profile data');
+        // Fallback to userData if staff API fails
+        setProfile({
+          id: staffId,
+          name: userData?.name || userData?.email || 'User',
+          first_name: userData?.name?.split(' ')[0] || '',
+          last_name: userData?.name?.split(' ').slice(1).join(' ') || '',
+          email: userData?.email || '',
+          phone: '',
+          mobile: '',
+          address_line1: '',
+          address_line2: '',
+          town: '',
+          postcode: '',
+          role_name: getRoleBadge(),
+          employment_type: '',
+          joined_date: '',
+          emergency_contact_name: '',
+          emergency_contact_phone: '',
+        });
       }
     } catch (error: any) {
-      Alert.alert('Error', 'Could not connect to server');
+      // Fallback to userData on error
+      setProfile({
+        id: staffId || 0,
+        name: userData?.name || userData?.email || 'User',
+        first_name: userData?.name?.split(' ')[0] || '',
+        last_name: userData?.name?.split(' ').slice(1).join(' ') || '',
+        email: userData?.email || '',
+        phone: '',
+        mobile: '',
+        address_line1: '',
+        address_line2: '',
+        town: '',
+        postcode: '',
+        role_name: getRoleBadge(),
+        employment_type: '',
+        joined_date: '',
+        emergency_contact_name: '',
+        emergency_contact_phone: '',
+      });
     } finally {
       setLoading(false);
     }

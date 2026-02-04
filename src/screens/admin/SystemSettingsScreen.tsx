@@ -420,7 +420,7 @@ export default function SystemSettingsScreen({ navigation, userData }: SystemSet
         <View style={styles.footer}>
           <Text style={styles.footerText}>Albis Care Ltd</Text>
           <Text style={styles.footerSubtext}>Care Management System</Text>
-          <Text style={styles.copyright}>© 2024 All Rights Reserved</Text>
+          <Text style={styles.copyright}>© 2026 All Rights Reserved</Text>
         </View>
       </ScrollView>
     </ScreenWrapper>

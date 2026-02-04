@@ -63,7 +63,7 @@ export default function TransportListScreen({ navigation, route }: TransportList
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
+    switch (status?.toLowerCase()) {
       case 'scheduled': return '#3b82f6';
       case 'in_progress': return '#f59e0b';
       case 'completed': return '#10b981';
@@ -75,7 +75,8 @@ export default function TransportListScreen({ navigation, route }: TransportList
   const renderItem = ({ item }: { item: any }) => {
     // Navigate to detail screen if completed OR if user is admin (read-only)
     // Only drivers can access the execution screen for active transports
-    const isCompleted = item.status === 'completed' || item.status === 'cancelled';
+    const status = item.status?.toLowerCase();
+    const isCompleted = status === 'completed' || status === 'cancelled';
     const shouldShowReadOnly = isCompleted || isAdmin;
 
     return (

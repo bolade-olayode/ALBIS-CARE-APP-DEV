@@ -45,7 +45,7 @@ export default function TransportExecutionScreen({
       if (json.success && json.data?.transport) {
         const t = json.data.transport;
         setTransport(t);
-        if (t.status === 'in_progress') {
+        if (t.status?.toLowerCase() === 'in_progress') {
           setStarted(true);
           if (t.actual_pickup_time) {
             setStartTime(new Date(t.actual_pickup_time));
@@ -156,7 +156,7 @@ export default function TransportExecutionScreen({
         </View>
 
         {/* Action Area */}
-        {transport.status === 'completed' ? (
+        {transport.status?.toLowerCase() === 'completed' ? (
           <View style={styles.section}>
             <View style={[styles.progressBox, { backgroundColor: '#d1fae5' }]}>
               <Text style={[styles.progTxt, { color: '#065f46' }]}>

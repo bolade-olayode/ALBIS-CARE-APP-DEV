@@ -133,11 +133,11 @@ export default function ClientDetailScreen({ route, navigation }: ClientDetailSc
       <ScreenWrapper>
         <View style={styles.centerContainer}>
           <Text style={styles.errorText}>Client not found</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.backButton}
-            onPress={() => navigation.goBack()}
+            onPress={() => navigation.navigate('ClientList')}
           >
-            <Text style={styles.backButtonText}>← Go Back</Text>
+            <Text style={styles.backButtonText}>← Back to Client List</Text>
           </TouchableOpacity>
         </View>
       </ScreenWrapper>

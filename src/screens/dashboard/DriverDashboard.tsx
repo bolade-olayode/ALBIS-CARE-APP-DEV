@@ -62,7 +62,7 @@ export default function DriverDashboard({ navigation, userData, onLogout }: Driv
         const transports = todayResponse.data?.transports || [];
         setTodayTransports(transports);
         
-        const completed = transports.filter((t: any) => t.status === 'completed').length;
+        const completed = transports.filter((t: any) => t.status?.toLowerCase() === 'completed').length;
         
         setStats(prev => ({
           ...prev,
@@ -110,7 +110,7 @@ export default function DriverDashboard({ navigation, userData, onLogout }: Driv
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
+    switch (status?.toLowerCase()) {
       case 'scheduled': return '#3b82f6';
       case 'in_progress': return '#f59e0b';
       case 'completed': return '#10b981';
@@ -196,7 +196,8 @@ export default function DriverDashboard({ navigation, userData, onLogout }: Driv
                 key={transport.transport_id}
                 style={styles.transportCard}
                 onPress={() => {
-                  if (transport.status === 'completed' || transport.status === 'cancelled') {
+                  const status = transport.status?.toLowerCase();
+                  if (status === 'completed' || status === 'cancelled') {
                     navigation?.navigate('TransportDetail', {
                       transportId: transport.transport_id
                     });
@@ -267,7 +268,7 @@ export default function DriverDashboard({ navigation, userData, onLogout }: Driv
                   </View>
                 )}
 
-                {transport.status === 'scheduled' && (
+                {transport.status?.toLowerCase() === 'scheduled' && (
                   <View style={styles.transportAction}>
                     <Text style={styles.actionText}>Tap to start transport →</Text>
                   </View>
@@ -325,23 +326,23 @@ export default function DriverDashboard({ navigation, userData, onLogout }: Driv
 
           <TouchableOpacity
             style={styles.actionCard}
-            onPress={() => navigation?.navigate('TransportList', { userData })}
+            onPress={() => navigation?.navigate('TransportList', { userData, filter: 'scheduled' })}
           >
-            <Text style={styles.actionIcon}>📋</Text>
+            <Text style={styles.actionIcon}>🗓️</Text>
             <View style={styles.actionContent}>
-              <Text style={styles.actionTitle}>Transport Logs</Text>
-              <Text style={styles.actionDescription}>View transport history</Text>
+              <Text style={styles.actionTitle}>My Assigned Transports</Text>
+              <Text style={styles.actionDescription}>View all scheduled transports</Text>
             </View>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.actionCard}
-            onPress={() => navigation?.navigate('TransportList', { userData })}
+            onPress={() => navigation?.navigate('TransportList', { userData, filter: 'completed' })}
           >
-            <Text style={styles.actionIcon}>🗓️</Text>
+            <Text style={styles.actionIcon}>📋</Text>
             <View style={styles.actionContent}>
-              <Text style={styles.actionTitle}>Full Schedule</Text>
-              <Text style={styles.actionDescription}>View all assigned transports</Text>
+              <Text style={styles.actionTitle}>My Transport History</Text>
+              <Text style={styles.actionDescription}>View completed transports</Text>
             </View>
           </TouchableOpacity>
 

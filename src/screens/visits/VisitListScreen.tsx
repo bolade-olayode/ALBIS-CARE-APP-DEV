@@ -84,7 +84,9 @@ export default function VisitListScreen({ navigation, route }: VisitListScreenPr
     let filtered = visits;
 
     if (status !== 'all') {
-      filtered = filtered.filter((visit) => visit.status === status);
+      filtered = filtered.filter((visit) =>
+        visit.status?.toLowerCase() === status.toLowerCase()
+      );
     }
 
     if (query.trim()) {
@@ -101,7 +103,7 @@ export default function VisitListScreen({ navigation, route }: VisitListScreenPr
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
+    switch (status?.toLowerCase()) {
       case 'scheduled': return '#3b82f6';
       case 'confirmed': return '#10b981';
       case 'in_progress': return '#f59e0b';

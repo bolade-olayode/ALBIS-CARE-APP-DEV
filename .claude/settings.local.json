@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Bash(git pull:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(dir /s /b \"c:\\\\albis-care-app\\\\my-app\\\\src\\\\screens\")",
+      "Bash(findstr:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx expo install expo-notifications expo-device expo-constants)"
     ]
   }
 }

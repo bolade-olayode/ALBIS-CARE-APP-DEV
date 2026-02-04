@@ -66,7 +66,7 @@ export default function StaffDashboard({ navigation, userData, onLogout }: Staff
       if (todayResponse.success) {
         const visits = todayResponse.data?.visits || [];
         setTodayVisits(visits);
-        const completed = visits.filter((v: any) => v.status === 'completed').length;
+        const completed = visits.filter((v: any) => v.status?.toLowerCase() === 'completed').length;
         setStats(prev => ({ ...prev, today: visits.length, completed: completed }));
       }
 
@@ -101,7 +101,7 @@ export default function StaffDashboard({ navigation, userData, onLogout }: Staff
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
+    switch (status?.toLowerCase()) {
       case 'scheduled': return '#3b82f6';
       case 'confirmed': return '#10b981';
       case 'in_progress': return '#f59e0b';
@@ -185,7 +185,8 @@ export default function StaffDashboard({ navigation, userData, onLogout }: Staff
                 key={visit.visit_id}
                 style={styles.visitCard}
                 onPress={() => {
-                  if (visit.status === 'scheduled' || visit.status === 'confirmed') {
+                  const status = visit.status?.toLowerCase();
+                  if (status === 'scheduled' || status === 'confirmed') {
                     navigation?.navigate('VisitExecution', { visitId: visit.visit_id, userData: userData });
                   } else {
                     navigation?.navigate('VisitDetail', { visitId: visit.visit_id });
@@ -213,7 +214,7 @@ export default function StaffDashboard({ navigation, userData, onLogout }: Staff
                   )}
                 </View>
 
-                {(visit.status === 'scheduled' || visit.status === 'confirmed') && (
+                {(visit.status?.toLowerCase() === 'scheduled' || visit.status?.toLowerCase() === 'confirmed') && (
                   <View style={styles.visitAction}>
                     <Text style={styles.actionText}>Tap to start visit →</Text>
                   </View>

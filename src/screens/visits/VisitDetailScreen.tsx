@@ -207,7 +207,8 @@ export default function VisitDetailScreen({ route, navigation }: VisitDetailScre
                   style={styles.transportButton}
                   onPress={() => {
                     // Navigate to detail screen if visit is completed, execution screen otherwise
-                    if (visit.status === 'completed' || visit.status === 'cancelled') {
+                    const visitStatus = visit.status?.toLowerCase();
+                    if (visitStatus === 'completed' || visitStatus === 'cancelled') {
                       navigation.navigate('TransportDetail', { transportId: visit.transport_id });
                     } else {
                       navigation.navigate('TransportExecution', { transportId: visit.transport_id });
@@ -215,7 +216,7 @@ export default function VisitDetailScreen({ route, navigation }: VisitDetailScre
                   }}
                 >
                   <Text style={styles.transportButtonText}>
-                    {visit.status === 'completed' || visit.status === 'cancelled' ? 'View Transport Details' : 'View Job Status / Start'}
+                    {visit.status?.toLowerCase() === 'completed' || visit.status?.toLowerCase() === 'cancelled' ? 'View Transport Details' : 'View Job Status / Start'}
                   </Text>
                 </TouchableOpacity>
               ) : (
