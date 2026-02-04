@@ -6,10 +6,6 @@ A comprehensive mobile application for managing care services, staff, clients, a
 
 **Client:** Albis Care UK
 **Platform:** React Native / Expo (iOS & Android)
-**Backend:** PHP REST API
-**Database:** MySQL (MariaDB)
-**Hosting:** Hostinger cPanel
-**API URL:** https://albiscare.co.uk/api
 **Version:** 1.0.0
 **Last Updated:** February 4, 2026
 
@@ -21,7 +17,7 @@ A comprehensive mobile application for managing care services, staff, clients, a
 - [x] Role-based authentication (6 user types)
 - [x] JWT token authentication
 - [x] Bcrypt password hashing
-- [x] Rate limiting (5 attempts/minute)
+- [x] Rate limiting
 - [x] HTTPS/SSL encryption
 - [x] Session management with AsyncStorage
 - [x] Change password functionality
@@ -152,56 +148,6 @@ npx expo start
 # Press 'a' for Android Emulator
 # Scan QR code with Expo Go on physical device
 ```
-
-### Environment Configuration
-The API is configured in `src/config/api.ts`:
-```typescript
-export const API_CONFIG = {
-  BASE_URL: 'https://albiscare.co.uk/api',
-  TIMEOUT: 30000,
-};
-```
-
----
-
-## 📡 API Endpoints
-
-### Base URL
-```
-https://albiscare.co.uk/api/v1
-```
-
-### Authentication
-- `POST /auth/login.php` - User login
-
-### Clients
-- `GET /clients/` - List all clients
-- `GET /clients/get.php?id={id}` - Get client details
-- `POST /clients/create.php` - Create client
-- `PUT /clients/update.php?id={id}` - Update client
-- `DELETE /clients/delete.php?id={id}` - Delete client
-
-### Staff
-- `GET /staff/` - List all staff
-- `GET /staff/get.php?id={id}` - Get staff details
-- `POST /staff/create.php` - Create staff
-- `PUT /staff/update.php?id={id}` - Update staff
-- `DELETE /staff/delete.php?id={id}` - Delete staff
-
-### Visits
-- `GET /visits/` - List visits
-- `POST /visits/create.php` - Schedule visit
-- `PUT /visits/update.php?id={id}` - Update visit
-- `PUT /visits/start.php` - Start visit execution
-- `PUT /visits/complete.php` - Complete visit
-
-### Notifications
-- `POST /notifications/register-token.php` - Register push token
-- `POST /notifications/unregister-token.php` - Deactivate push token
-
-### Cron Jobs
-- `GET /cron/send-visit-reminders.php?key={key}` - Send visit reminders
-
 ---
 
 ## 🔐 Security Features
@@ -277,14 +223,6 @@ Push notifications are configured and ready. The system:
 2. Sends visit reminders via cron job
 3. Supports deep linking to specific screens
 4. Handles foreground and background notifications
-
-### Cron Job (Hostinger)
-Set up cron to run every 15 minutes:
-```
-*/15 * * * * curl -s "https://albiscare.co.uk/api/cron/send-visit-reminders.php?key=AlbisSecretCron2026"
-```
-
----
 
 ## 📞 Support
 
