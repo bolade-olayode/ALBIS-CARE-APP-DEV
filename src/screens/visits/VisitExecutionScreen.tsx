@@ -24,11 +24,15 @@ interface VisitExecutionScreenProps {
 
 export default function VisitExecutionScreen({ navigation, route }: VisitExecutionScreenProps) {
   const { visitId } = route.params;
-  
+
   // Safe user data extraction (Fallback to empty object if undefined)
   const routes = navigation.getState().routes;
   const userData = routes[0]?.params?.userData || {};
   const staffId = userData?.staff?.staff_id || userData?.user?.id || 0;
+
+  // Role check - admins can view but NOT execute visits
+  const userRole = userData?.effective_role || userData?.user?.role || userData?.userType || userData?.role || '';
+  const isAdminRole = ['super_admin', 'admin', 'care_manager'].includes(userRole);
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -285,16 +289,29 @@ export default function VisitExecutionScreen({ navigation, route }: VisitExecuti
         {/* Clock In/Out */}
         {!clockedIn ? (
           <View style={styles.section}>
-            <TouchableOpacity 
-              style={styles.clockInButton} 
-              onPress={handleClockIn}
-            >
-              <Text style={styles.clockInIcon}>▶️</Text>
-              <Text style={styles.clockInText}>Clock In & Start Visit</Text>
-            </TouchableOpacity>
-            <Text style={styles.clockInHint}>
-              Tap to begin the visit and start recording care activities
-            </Text>
+            {isAdminRole ? (
+              <View style={styles.adminViewOnlyBox}>
+                <Text style={styles.adminViewOnlyIcon}>👁</Text>
+                <Text style={styles.adminViewOnlyTitle}>View Only</Text>
+                <Text style={styles.adminViewOnlyText}>
+                  Only assigned carers can clock in and execute visits.
+                  As an admin you have read-only access to visit details.
+                </Text>
+              </View>
+            ) : (
+              <>
+                <TouchableOpacity
+                  style={styles.clockInButton}
+                  onPress={handleClockIn}
+                >
+                  <Text style={styles.clockInIcon}>▶️</Text>
+                  <Text style={styles.clockInText}>Clock In & Start Visit</Text>
+                </TouchableOpacity>
+                <Text style={styles.clockInHint}>
+                  Tap to begin the visit and start recording care activities
+                </Text>
+              </>
+            )}
           </View>
         ) : (
           <>
@@ -741,5 +758,29 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  adminViewOnlyBox: {
+    backgroundColor: '#f1f5f9',
+    borderRadius: 12,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  adminViewOnlyIcon: {
+    fontSize: 36,
+    marginBottom: 8,
+  },
+  adminViewOnlyTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#475569',
+    marginBottom: 8,
+  },
+  adminViewOnlyText: {
+    fontSize: 14,
+    color: '#64748b',
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });

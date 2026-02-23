@@ -92,6 +92,19 @@ export const careLogApi = {
     }
   },
 
+  // Admin/care_manager direct log creation (no visit workflow required)
+  createAdminLog: async (logData: CareLog) => {
+    try {
+      const response = await apiClient.post(`${API_CONFIG.ENDPOINTS.LOGS}/admin-create.php`, logData);
+      return response.data;
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.response?.data?.message || error.message || 'Failed to create log'
+      };
+    }
+  },
+
   // Alias for createLog (for compatibility)
   createCareLog: async (logData: CareLog) => {
     try {

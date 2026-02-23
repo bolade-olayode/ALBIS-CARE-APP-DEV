@@ -92,7 +92,7 @@ export default function AddCareLogScreen({ navigation }: AddCareLogScreenProps) 
   };
 
   // Date Picker Logic
-  const onDateChange = (event: any, selectedDate?: Date) => {
+  const onDateChange = (_event: any, selectedDate?: Date) => {
     if (Platform.OS === 'android') {
       setShowDatePicker(false);
       if (selectedDate) {
@@ -130,16 +130,19 @@ export default function AddCareLogScreen({ navigation }: AddCareLogScreenProps) 
     setLoading(true);
 
     try {
+      const visitDateSQL = parseDate(formData.visit_date);
       const submitData = {
         ...formData,
         // Convert date back to SQL Format
-        visit_date: parseDate(formData.visit_date),
+        visit_date: visitDateSQL,
+        log_date: visitDateSQL,
+        log_time: formData.visit_time,
         client_id: parseInt(formData.client_id),
         staff_id: parseInt(formData.staff_id),
         duration_minutes: parseInt(formData.duration_minutes) || 0,
       };
 
-      const response = await careLogApi.createLog(submitData);
+      const response = await careLogApi.createAdminLog(submitData);
 
       if (response.success) {
         Alert.alert('Success', 'Care log added successfully!', [

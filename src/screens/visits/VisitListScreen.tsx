@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
+  ScrollView,
 } from 'react-native';
 import { ScreenWrapper } from '../../components';
 import { visitApi, ScheduledVisit } from '../../services/api/visitApi';
@@ -23,15 +24,43 @@ interface VisitListScreenProps {
   route: any;
 }
 
+const FILTERS = [
+  { key: 'in_progress', label: 'In Progress', color: '#f59e0b', bg: '#fffbeb' },
+  { key: 'all',         label: 'All',         color: '#2563eb', bg: '#eff6ff' },
+  { key: 'scheduled',   label: 'Scheduled',   color: '#3b82f6', bg: '#eff6ff' },
+  { key: 'confirmed',   label: 'Confirmed',   color: '#10b981', bg: '#ecfdf5' },
+  { key: 'completed',   label: 'Completed',   color: '#6b7280', bg: '#f9fafb' },
+  { key: 'missed',      label: 'Missed',      color: '#ef4444', bg: '#fef2f2' },
+];
+
+const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
+  scheduled:   { label: 'Scheduled',   color: '#3b82f6', bg: '#dbeafe' },
+  confirmed:   { label: 'Confirmed',   color: '#059669', bg: '#d1fae5' },
+  in_progress: { label: 'In Progress', color: '#d97706', bg: '#fef3c7' },
+  completed:   { label: 'Completed',   color: '#6b7280', bg: '#f3f4f6' },
+  cancelled:   { label: 'Cancelled',   color: '#ef4444', bg: '#fee2e2' },
+  missed:      { label: 'Missed',      color: '#dc2626', bg: '#fee2e2' },
+};
+
+function getStatusMeta(status: string) {
+  return STATUS_META[status?.toLowerCase()] ?? { label: status ?? 'Unknown', color: '#6b7280', bg: '#f3f4f6' };
+}
+
+function formatTime(time: string) {
+  if (!time) return '';
+  const [h, m] = time.split(':');
+  const hour = parseInt(h);
+  return `${hour % 12 || 12}:${m} ${hour >= 12 ? 'PM' : 'AM'}`;
+}
+
 export default function VisitListScreen({ navigation, route }: VisitListScreenProps) {
   const [visits, setVisits] = useState<ScheduledVisit[]>([]);
   const [filteredVisits, setFilteredVisits] = useState<ScheduledVisit[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('in_progress');
 
-  // Permission checks
   const { canCreate } = usePermissions();
 
   useFocusEffect(
@@ -43,17 +72,14 @@ export default function VisitListScreen({ navigation, route }: VisitListScreenPr
   const loadVisits = async () => {
     try {
       setLoading(true);
-
-      // Build filters from route params (staff_id or client_id)
       const filters: any = {};
       if (route.params?.staff_id) filters.staff_id = route.params.staff_id;
       if (route.params?.client_id) filters.client_id = route.params.client_id;
-
       const response = await visitApi.getVisits(Object.keys(filters).length > 0 ? filters : undefined);
-
       if (response.success && response.data) {
-        setVisits(response.data.visits || []);
-        setFilteredVisits(response.data.visits || []);
+        const data = response.data.visits || [];
+        setVisits(data);
+        applyFilter(data, searchQuery, statusFilter);
       } else {
         Alert.alert('Error', response.message || 'Failed to load visits');
       }
@@ -70,106 +96,119 @@ export default function VisitListScreen({ navigation, route }: VisitListScreenPr
     setRefreshing(false);
   };
 
+  const applyFilter = (source: ScheduledVisit[], query: string, status: string) => {
+    let result = status === 'all'
+      ? source
+      : source.filter(v => v.status?.toLowerCase() === status);
+
+    if (query.trim()) {
+      const q = query.toLowerCase();
+      result = result.filter(v =>
+        v.client_name?.toLowerCase().includes(q) ||
+        v.staff_name?.toLowerCase().includes(q) ||
+        v.visit_date?.includes(query)
+      );
+    }
+    setFilteredVisits(result);
+  };
+
   const handleSearch = (query: string) => {
     setSearchQuery(query);
-    filterVisits(query, statusFilter);
+    applyFilter(visits, query, statusFilter);
   };
 
   const handleStatusFilter = (status: string) => {
     setStatusFilter(status);
-    filterVisits(searchQuery, status);
+    applyFilter(visits, searchQuery, status);
   };
 
-  const filterVisits = (query: string, status: string) => {
-    let filtered = visits;
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayCount = filteredVisits.filter(v => v.visit_date === todayStr).length;
+  const activeFilter = FILTERS.find(f => f.key === statusFilter) ?? FILTERS[1];
 
-    if (status !== 'all') {
-      filtered = filtered.filter((visit) =>
-        visit.status?.toLowerCase() === status.toLowerCase()
-      );
-    }
+  const renderVisitItem = ({ item }: { item: any }) => {
+    const meta = getStatusMeta(item.status || 'scheduled');
+    const isToday = item.visit_date === todayStr;
+    const isInProgress = item.status?.toLowerCase() === 'in_progress';
 
-    if (query.trim()) {
-      const lowercaseQuery = query.toLowerCase();
-      filtered = filtered.filter(
-        (visit) =>
-          visit.client_name?.toLowerCase().includes(lowercaseQuery) ||
-          visit.staff_name?.toLowerCase().includes(lowercaseQuery) ||
-          visit.visit_date?.includes(query)
-      );
-    }
+    return (
+      <TouchableOpacity
+        style={[styles.card, isInProgress && styles.cardInProgress]}
+        onPress={() => navigation.navigate('VisitDetail', { visitId: item.visit_id })}
+        activeOpacity={0.75}
+      >
+        {/* Left accent bar */}
+        <View style={[styles.cardAccent, { backgroundColor: meta.color }]} />
 
-    setFilteredVisits(filtered);
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'scheduled': return '#3b82f6';
-      case 'confirmed': return '#10b981';
-      case 'in_progress': return '#f59e0b';
-      case 'completed': return '#6b7280';
-      case 'cancelled': return '#ef4444';
-      case 'missed': return '#dc2626';
-      default: return '#6b7280';
-    }
-  };
-
-  const renderVisitItem = ({ item }: { item: any }) => (
-    <TouchableOpacity
-      style={styles.visitCard}
-      onPress={() => navigation.navigate('VisitDetail', { visitId: item.visit_id })}
-    >
-      <View style={styles.visitHeader}>
-        <View style={styles.visitHeaderLeft}>
-          <Text style={styles.clientName}>{item.client_name}</Text>
-          <Text style={styles.staffName}>with {item.staff_name}</Text>
-        </View>
-        <View style={styles.badges}>
-          <View 
-            style={[
-              styles.statusBadge, 
-              { backgroundColor: getStatusColor(item.status || 'scheduled') }
-            ]}
-          >
-            <Text style={styles.statusText}>
-              {item.status?.toUpperCase() || 'SCHEDULED'}
-            </Text>
-          </View>
-          
-          {/* Transport Badge */}
-          {item.transport_id && (
-            <View style={styles.transportBadge}>
-              <Text style={styles.transportText}>🚗 + Transport</Text>
+        <View style={styles.cardBody}>
+          {/* Top row */}
+          <View style={styles.cardTop}>
+            <View style={styles.cardTopLeft}>
+              <Text style={styles.clientName} numberOfLines={1}>{item.client_name}</Text>
+              <Text style={styles.staffName}>👤 {item.staff_name}</Text>
             </View>
-          )}
-        </View>
-      </View>
-
-      <View style={styles.visitInfo}>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoIcon}>📅</Text>
-          <Text style={styles.infoText}>{formatDate(item.visit_date)}</Text>
-          <Text style={styles.infoDivider}>•</Text>
-          <Text style={styles.infoIcon}>🕐</Text>
-          <Text style={styles.infoText}>{item.visit_time}</Text>
-        </View>
-
-        {item.visit_type && (
-          <View style={styles.infoRow}>
-            <Text style={styles.infoIcon}>📋</Text>
-            <Text style={styles.infoText}>
-              {item.visit_type.replace('_', ' ')}
-            </Text>
+            <View style={styles.cardTopRight}>
+              <View style={[styles.statusPill, { backgroundColor: meta.bg }]}>
+                <Text style={[styles.statusPillText, { color: meta.color }]}>{meta.label}</Text>
+              </View>
+              {item.transport_id && (
+                <View style={styles.transportPill}>
+                  <Text style={styles.transportPillText}>🚗 Transport</Text>
+                </View>
+              )}
+            </View>
           </View>
-        )}
-      </View>
-    </TouchableOpacity>
+
+          {/* Divider */}
+          <View style={styles.cardDivider} />
+
+          {/* Bottom row */}
+          <View style={styles.cardBottom}>
+            <View style={styles.cardMeta}>
+              <Text style={styles.cardMetaText}>
+                📅 {isToday ? 'Today' : formatDate(item.visit_date)}
+              </Text>
+              <Text style={styles.cardMetaDot}>·</Text>
+              <Text style={styles.cardMetaText}>🕐 {formatTime(item.visit_time)}</Text>
+            </View>
+            <View style={styles.cardTags}>
+              {item.estimated_duration && (
+                <View style={styles.tag}>
+                  <Text style={styles.tagText}>⏱ {item.estimated_duration}m</Text>
+                </View>
+              )}
+              {item.visit_type && (
+                <View style={styles.tag}>
+                  <Text style={styles.tagText}>{item.visit_type.replace(/_/g, ' ')}</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderEmpty = () => (
+    <View style={styles.emptyContainer}>
+      <Text style={styles.emptyIcon}>
+        {statusFilter === 'in_progress' ? '✅' :
+         statusFilter === 'completed'   ? '📋' :
+         statusFilter === 'missed'      ? '⚠️' : '📅'}
+      </Text>
+      <Text style={styles.emptyTitle}>No visits found</Text>
+      <Text style={styles.emptySubtitle}>
+        {statusFilter === 'in_progress'
+          ? 'No visits are currently in progress.'
+          : `No ${activeFilter.label.toLowerCase()} visits match your search.`}
+      </Text>
+    </View>
   );
 
   if (loading) {
     return (
       <ScreenWrapper>
-        <View style={styles.centerContainer}>
+        <View style={styles.center}>
           <ActivityIndicator size="large" color="#2563eb" />
           <Text style={styles.loadingText}>Loading visits...</Text>
         </View>
@@ -179,87 +218,98 @@ export default function VisitListScreen({ navigation, route }: VisitListScreenPr
 
   return (
     <ScreenWrapper>
+      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Text style={styles.backText}>← Back</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Scheduled Visits</Text>
+        <Text style={styles.headerTitle}>Visits</Text>
         {canCreate('visits') ? (
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={() => navigation.navigate('ScheduleVisit')}
-          >
-            <Text style={styles.addButtonText}>+ Add</Text>
+          <TouchableOpacity style={styles.addButton} onPress={() => navigation.navigate('ScheduleVisit')}>
+            <Text style={styles.addButtonText}>+ Schedule</Text>
           </TouchableOpacity>
         ) : (
-          <View style={{ width: 70 }} />
+          <View style={{ width: 80 }} />
         )}
       </View>
 
+      {/* Search */}
       <View style={styles.searchContainer}>
-        <Text style={styles.searchIcon}>🔍</Text>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search by client, staff, or date..."
-          value={searchQuery}
-          onChangeText={handleSearch}
-        />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => handleSearch('')}>
-            <Text style={styles.clearButton}>✕</Text>
+        <View style={styles.searchWrapper}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search client, staff or date..."
+            value={searchQuery}
+            onChangeText={handleSearch}
+            returnKeyType="search"
+          />
+          <TouchableOpacity style={styles.clearButton} onPress={() => searchQuery ? handleSearch('') : null}>
+            <Text style={styles.searchIcon}>🔍</Text>
           </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Filter tabs — fixed-height wrapper prevents Android ScrollView from claiming extra flex space */}
+      <View style={styles.filterScrollWrapper}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterScrollContent}
+        >
+          {FILTERS.map(f => {
+            const active = statusFilter === f.key;
+            const count = f.key === 'all'
+              ? visits.length
+              : visits.filter(v => v.status?.toLowerCase() === f.key).length;
+            return (
+              <TouchableOpacity
+                key={f.key}
+                style={[
+                  styles.filterTab,
+                  active && { backgroundColor: f.color, borderColor: f.color },
+                ]}
+                onPress={() => handleStatusFilter(f.key)}
+              >
+                <Text style={[styles.filterTabText, active && styles.filterTabTextActive]}>
+                  {f.label}
+                </Text>
+                <View style={[
+                  styles.filterBadge,
+                  active ? styles.filterBadgeActive : { backgroundColor: '#f1f5f9' },
+                ]}>
+                  <Text style={[styles.filterBadgeText, active && styles.filterBadgeTextActive]}>
+                    {count}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+
+      {/* Stats bar */}
+      <View style={styles.statsBar}>
+        <Text style={styles.statsText}>
+          <Text style={styles.statsCount}>{filteredVisits.length}</Text>
+          {' '}{activeFilter.label.toLowerCase()} visit{filteredVisits.length !== 1 ? 's' : ''}
+        </Text>
+        {todayCount > 0 && (
+          <View style={styles.todayPill}>
+            <Text style={styles.todayPillText}>📅 {todayCount} today</Text>
+          </View>
         )}
       </View>
 
-      <View style={styles.filterContainer}>
-        {['all', 'scheduled', 'confirmed', 'completed'].map((status) => (
-          <TouchableOpacity
-            key={status}
-            style={[
-              styles.filterButton, 
-              statusFilter === status && styles.filterButtonActive
-            ]}
-            onPress={() => handleStatusFilter(status)}
-          >
-            <Text 
-              style={[
-                styles.filterButtonText, 
-                statusFilter === status && styles.filterButtonTextActive
-              ]}
-            >
-              {status.charAt(0).toUpperCase() + status.slice(1)}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <View style={styles.statsContainer}>
-        <View style={styles.statBox}>
-          <Text style={styles.statNumber}>{filteredVisits.length}</Text>
-          <Text style={styles.statLabel}>Total</Text>
-        </View>
-        <View style={styles.statBox}>
-          <Text style={styles.statNumber}>
-            {filteredVisits.filter((v) => v.visit_date === new Date().toISOString().split('T')[0]).length}
-          </Text>
-          <Text style={styles.statLabel}>Today</Text>
-        </View>
-      </View>
-
+      {/* List — flex: 1 fills all remaining space */}
       <FlatList
+        style={styles.list}
         data={filteredVisits}
         renderItem={renderVisitItem}
-        keyExtractor={(item) => item.visit_id?.toString() || Math.random().toString()}
-        contentContainerStyle={styles.listContainer}
+        keyExtractor={item => item.visit_id?.toString() ?? Math.random().toString()}
+        contentContainerStyle={[styles.listContainer, filteredVisits.length === 0 && { flex: 1 }]}
+        ListEmptyComponent={renderEmpty}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            colors={['#2563eb']}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#2563eb']} />
         }
       />
     </ScreenWrapper>
@@ -267,16 +317,10 @@ export default function VisitListScreen({ navigation, route }: VisitListScreenPr
 }
 
 const styles = StyleSheet.create({
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: '#64748b',
-  },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingText: { marginTop: 12, fontSize: 14, color: '#64748b' },
+
+  // Header
   header: {
     backgroundColor: 'white',
     paddingTop: 10,
@@ -288,185 +332,145 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
   },
-  backButton: {
-    padding: 8,
-  },
-  backText: {
-    fontSize: 16,
-    color: '#2563eb',
-    fontWeight: '600',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1e293b',
-  },
+  backButton: { padding: 8 },
+  backText: { fontSize: 16, color: '#2563eb', fontWeight: '600' },
+  headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#1e293b' },
   addButton: {
     backgroundColor: '#2563eb',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
   },
-  addButtonText: {
-    color: 'white',
-    fontWeight: '600',
-    fontSize: 14,
-  },
+  addButtonText: { color: 'white', fontWeight: '600', fontSize: 14 },
+
+  // Search
   searchContainer: {
+    padding: 16,
+    backgroundColor: 'white',
+  },
+  searchWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'white',
-    marginHorizontal: 16,
-    marginTop: 16,
-    paddingHorizontal: 12,
+    backgroundColor: '#f1f5f9',
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+    overflow: 'hidden',
   },
-  searchIcon: {
-    fontSize: 18,
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: '#1e293b',
-  },
+  searchIcon: { fontSize: 18 },
+  searchInput: { flex: 1, paddingHorizontal: 16, paddingVertical: 12, fontSize: 15, color: '#1e293b' },
   clearButton: {
-    fontSize: 18,
-    color: '#64748b',
-    padding: 4,
-  },
-  filterContainer: {
-    flexDirection: 'row',
-    marginHorizontal: 16,
-    marginTop: 12,
-    gap: 8,
-  },
-  filterButton: {
-    flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    backgroundColor: 'white',
-    alignItems: 'center',
-  },
-  filterButtonActive: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     backgroundColor: '#2563eb',
-    borderColor: '#2563eb',
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
   },
-  filterButtonText: {
-    fontSize: 13,
-    color: '#64748b',
-    fontWeight: '500',
-  },
-  filterButtonTextActive: {
-    color: 'white',
-  },
-  statsContainer: {
+  clearButtonText: { fontSize: 18, color: 'white' },
+
+  // Filter tabs
+  filterScrollWrapper: { height: 44, marginTop: 8 },
+  filterScrollContent: { paddingHorizontal: 16, gap: 8, alignItems: 'center', height: 44 },
+  filterTab: {
     flexDirection: 'row',
-    marginHorizontal: 16,
-    marginTop: 16,
-    gap: 12,
-  },
-  statBox: {
-    flex: 1,
-    backgroundColor: 'white',
-    padding: 12,
-    borderRadius: 8,
     alignItems: 'center',
-    borderWidth: 1,
+    height: 36,
+    paddingHorizontal: 12,
+    borderRadius: 18,
+    borderWidth: 1.5,
     borderColor: '#e2e8f0',
-  },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#2563eb',
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#64748b',
-    marginTop: 4,
-  },
-  listContainer: {
-    padding: 16,
-  },
-  visitCard: {
     backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    gap: 6,
   },
-  visitHeader: {
+  filterTabText: { fontSize: 13, fontWeight: '600', color: '#64748b' },
+  filterTabTextActive: { color: 'white' },
+  filterBadge: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
+  filterBadgeActive: { backgroundColor: 'rgba(255,255,255,0.3)' },
+  filterBadgeText: { fontSize: 11, fontWeight: '700', color: '#64748b' },
+  filterBadgeTextActive: { color: 'white' },
+
+  // Stats bar
+  statsBar: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  visitHeaderLeft: {
-    flex: 1,
-  },
-  clientName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1e293b',
+    marginHorizontal: 16,
+    marginTop: 8,
     marginBottom: 4,
   },
-  staffName: {
-    fontSize: 14,
-    color: '#64748b',
-  },
-  badges: {
-    alignItems: 'flex-end',
-    gap: 4,
-  },
-  statusBadge: {
+  statsText: { fontSize: 13, color: '#64748b' },
+  statsCount: { fontWeight: '700', color: '#1e293b' },
+  todayPill: {
+    backgroundColor: '#eff6ff',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
   },
-  statusText: {
-    fontSize: 10,
-    color: 'white',
-    fontWeight: 'bold',
+  todayPillText: { fontSize: 12, color: '#2563eb', fontWeight: '600' },
+
+  // List
+  list: { flex: 1 },
+  listContainer: { padding: 16, paddingTop: 8 },
+
+  // Cards
+  card: {
+    flexDirection: 'row',
+    backgroundColor: 'white',
+    borderRadius: 12,
+    marginBottom: 10,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.07,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  transportBadge: {
+  cardInProgress: {
+    shadowColor: '#f59e0b',
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#fde68a',
+  },
+  cardAccent: { width: 4, borderRadius: 2 },
+  cardBody: { flex: 1, padding: 14 },
+  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  cardTopLeft: { flex: 1, paddingRight: 8 },
+  clientName: { fontSize: 16, fontWeight: '700', color: '#0f172a', marginBottom: 3 },
+  staffName: { fontSize: 13, color: '#64748b' },
+  cardTopRight: { alignItems: 'flex-end', gap: 4 },
+  statusPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  statusPillText: { fontSize: 11, fontWeight: '700' },
+  transportPill: {
     backgroundColor: '#fef3c7',
     paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+    paddingVertical: 3,
+    borderRadius: 20,
   },
-  transportText: {
-    fontSize: 10,
-    color: '#d97706',
-    fontWeight: 'bold',
+  transportPillText: { fontSize: 11, color: '#d97706', fontWeight: '600' },
+  cardDivider: { height: 1, backgroundColor: '#f1f5f9', marginVertical: 10 },
+  cardBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  cardMetaText: { fontSize: 13, color: '#475569' },
+  cardMetaDot: { fontSize: 13, color: '#cbd5e1' },
+  cardTags: { flexDirection: 'row', gap: 6 },
+  tag: {
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
-  visitInfo: {
-    gap: 8,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  infoIcon: {
-    fontSize: 14,
-    marginRight: 6,
-  },
-  infoText: {
-    fontSize: 14,
-    color: '#475569',
-    textTransform: 'capitalize',
-  },
-  infoDivider: {
-    marginHorizontal: 8,
-    color: '#cbd5e1',
-  },
+  tagText: { fontSize: 11, color: '#64748b', fontWeight: '500', textTransform: 'capitalize' },
+
+  // Empty state
+  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 60 },
+  emptyIcon: { fontSize: 64, marginBottom: 16 },
+  emptyTitle: { fontSize: 18, fontWeight: '600', color: '#1e293b', marginBottom: 8 },
+  emptySubtitle: { fontSize: 14, color: '#64748b', textAlign: 'center', paddingHorizontal: 32 },
 });
