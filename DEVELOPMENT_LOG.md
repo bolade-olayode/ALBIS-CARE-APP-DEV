@@ -4,6 +4,81 @@ This document tracks all major development milestones, bug fixes, and feature im
 
 ---
 
+## Version 1.1.0 (February 23, 2026)
+
+### Visit List Screen Redesign
+**Date:** February 23, 2026
+
+#### Changed
+- Full visual overhaul of `VisitListScreen.tsx`
+- Replaced simple status dropdown with scrollable colour-coded filter tab bar
+- Default active tab changed from **All** → **In Progress**
+- Visit cards redesigned with coloured left accent bar, status pill, duration and visit-type tags
+- Added stats bar showing count of visible visits and a "today" indicator pill
+- Added contextual empty states per tab (different icon/message per status)
+
+#### New Filter Tabs
+| Tab | Colour | Purpose |
+|-----|--------|---------|
+| In Progress | Amber `#f59e0b` | Currently active visits (default) |
+| All | Blue `#2563eb` | All visits |
+| Scheduled | Blue `#3b82f6` | Upcoming confirmed visits |
+| Confirmed | Green `#10b981` | Confirmed bookings |
+| Completed | Grey `#6b7280` | Historical completed visits |
+| Missed | Red `#ef4444` | Missed / no-show visits |
+
+#### Bug Fixes
+- Fixed horizontal `ScrollView` claiming unbounded vertical flex space on Android — wrapped in a fixed-height `View` (`height: 44`) so the `FlatList` below it correctly fills remaining screen space
+- Fixed completed visits not appearing in the Completed tab — removed the default 7-day date window from `api/v1/visits/index.php` (date filter now only applied when `start_date` and `end_date` are explicitly passed)
+- Fixed active filter tab appearing larger than inactive tabs — replaced `paddingVertical` with a fixed `height: 36` on all tab buttons
+
+#### Files Modified
+- `src/screens/visits/VisitListScreen.tsx` — full redesign
+- `backend-setup/api/v1/visits/index.php` — removed default date restriction, added optional `status` filter param
+
+---
+
+### Admin Role Restriction on Visit Execution
+**Date:** February 23, 2026
+
+#### Added
+- Admin / super_admin / care_manager users now see a **View Only** notice instead of the "Clock In & Start Visit" button on `VisitExecutionScreen.tsx`
+- Role is derived from `userData.effective_role` with multiple fallbacks
+- New styles: `adminViewOnlyBox`, `adminViewOnlyIcon`, `adminViewOnlyTitle`, `adminViewOnlyText`
+
+#### Rationale
+- Only the assigned carer should be able to execute a visit clock-in
+- Admins can still view all visit details without accidentally starting or completing a visit
+
+#### Files Modified
+- `src/screens/visits/VisitExecutionScreen.tsx`
+
+---
+
+### Admin Direct Care Log Creation
+**Date:** February 23, 2026
+
+#### Problem
+`AddCareLogScreen.tsx` was failing with "fill all required fields" even when all fields were completed because:
+1. `api/v1/logs/create.php` is restricted to `staff` / `care_manager` roles — admins received a 403
+2. Backend expected `care_provided` field; form was sending `activities_performed`
+3. Backend required a `visit_id`; admin standalone logs have none
+4. `log_date` and `log_time` fields were missing from the submitted payload
+
+#### Solution
+- Created new endpoint `api/v1/logs/admin-create.php` — accepts direct field names, no `visit_id` required, allowed roles: `admin`, `super_admin`, `care_manager`
+- Added `createAdminLog()` method to `careLogApi.ts` pointing to the new endpoint
+- Updated `AddCareLogScreen.tsx` to call `careLogApi.createAdminLog()` and include `log_date`/`log_time` in the payload
+
+#### Files Created
+- `backend-setup/api/v1/logs/admin-create.php`
+
+#### Files Modified
+- `src/services/api/careLogApi.ts` — added `createAdminLog` method
+- `src/screens/logs/AddCareLogScreen.tsx` — switched to admin endpoint, fixed payload
+
+---
+
 ## Version 1.0.0 (February 4, 2026) - Production Release
 
 ### Push Notifications System
@@ -290,6 +365,11 @@ ADD COLUMN can_view_visit_logs TINYINT DEFAULT 1;
 
 | Issue | Resolution | Date |
 |-------|------------|------|
+| Horizontal ScrollView causing large gap below filter tabs on Android | Wrapped ScrollView in fixed-height `View` (`height: 44`); `FlatList` now takes `flex: 1` directly | Feb 23, 2026 |
+| Active filter tab appearing taller than inactive tabs | Replaced `paddingVertical` with fixed `height: 36` on all tab buttons | Feb 23, 2026 |
+| Completed visits not showing in Completed tab | Removed 7-day default date window from `visits/index.php` | Feb 23, 2026 |
+| AddCareLogScreen "fill all required fields" error for admin users | Created `admin-create.php` endpoint; fixed field names and added `log_date`/`log_time` to payload | Feb 23, 2026 |
+| Admin users could initiate visit clock-in | Added `isAdminRole` check in `VisitExecutionScreen`; shows view-only notice instead | Feb 23, 2026 |
 | Push token registration failing with "Database error" | Added 500ms delay after login to ensure auth token is saved | Feb 4, 2026 |
 | Status filtering case-sensitive | Added `.toLowerCase()` to all comparisons | Feb 3, 2026 |
 | Dashboard routing incorrect | Improved role detection logic | Jan 28, 2026 |
@@ -351,6 +431,7 @@ ADD COLUMN can_view_visit_logs TINYINT DEFAULT 1;
 
 | Date | Version | Notes |
 |------|---------|-------|
+| Feb 23, 2026 | 1.1.0 | Visit list redesign, admin view-only mode, admin care log creation |
 | Feb 4, 2026 | 1.0.0 | Production release with push notifications |
 | Feb 3, 2026 | 0.9.0 | Status filtering fixes |
 | Jan 29, 2026 | 0.8.0 | Security enhancements |
@@ -364,4 +445,4 @@ ADD COLUMN can_view_visit_logs TINYINT DEFAULT 1;
 ---
 
 **Document maintained by:** Development Team
-**Last updated:** February 4, 2026
+**Last updated:** February 23, 2026

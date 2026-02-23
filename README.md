@@ -6,8 +6,8 @@ A comprehensive mobile application for managing care services, staff, clients, a
 
 **Client:** Albis Care UK
 **Platform:** React Native / Expo (iOS & Android)
-**Version:** 1.0.0
-**Last Updated:** February 4, 2026
+**Version:** 1.1.0
+**Last Updated:** February 23, 2026
 
 ---
 
@@ -47,10 +47,12 @@ A comprehensive mobile application for managing care services, staff, clients, a
 
 ### Visit Management
 - [x] Schedule visits
-- [x] Visit list with filtering (Today, Upcoming, Completed, Missed)
+- [x] Visit list with colour-coded filter tabs (In Progress, All, Scheduled, Confirmed, Completed, Missed)
+- [x] Default tab: In Progress
 - [x] Visit detail view
-- [x] Visit execution workflow (Start → Complete)
-- [x] Care log creation
+- [x] Visit execution workflow (Start → Complete) — staff only
+- [x] Admin / Care Manager view-only mode in visit execution
+- [x] Care log creation from completed visits
 - [x] Status tracking
 
 ### Transport Management
@@ -66,6 +68,13 @@ A comprehensive mobile application for managing care services, staff, clients, a
 - [x] Visit reminder notifications (cron job)
 - [x] Deep linking from notifications
 - [x] Multiple device support per user
+
+### Care Logs
+- [x] Admin / Care Manager direct log creation (no visit workflow required)
+- [x] Staff log creation via visit execution workflow
+- [x] Separate backend endpoints: `create.php` (staff) / `admin-create.php` (admin)
+- [x] Vitals recording (temperature, blood pressure, heart rate)
+- [x] Tasks checklist, mood tracking, follow-up flags
 
 ### Family Portal
 - [x] Grant family access to clients
@@ -238,6 +247,6 @@ Proprietary - Albis Care UK © 2026
 
 ---
 
-**Version:** 1.0.0
+**Version:** 1.1.0
 **Status:** Production Ready
-**Last Updated:** February 4, 2026
+**Last Updated:** February 23, 2026
