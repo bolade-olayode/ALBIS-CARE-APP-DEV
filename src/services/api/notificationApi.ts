@@ -67,7 +67,10 @@ export const notificationApi = {
       });
       return response.data;
     } catch (error: any) {
-      console.error('Unregister token API error:', error);
+      // 401 is expected if session already expired on logout - silently ignore
+      if (error.response?.status !== 401) {
+        console.error('Unregister token API error:', error);
+      }
       return {
         success: false,
         message: error.response?.data?.message || error.message || 'Failed to unregister token',

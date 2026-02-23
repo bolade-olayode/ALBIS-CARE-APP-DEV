@@ -126,8 +126,8 @@ export default function AppNavigator({ navigationRef }: AppNavigatorProps) {
 
   const handleLogout = async () => {
     try {
-      // Unregister push token before logout
-      await notificationService.unregisterToken();
+      // Fire-and-forget: don't block logout on token deregistration
+      notificationService.unregisterToken().catch(() => {});
 
       await AsyncStorage.removeItem('authToken');
       await AsyncStorage.removeItem('userData');
