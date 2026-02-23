@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { Ionicons } from '@expo/vector-icons';
 import { ScreenWrapper, FormScrollView } from '../../components';
 import { staffApi } from '../../services/api/staffApi';
 import { formatDate, parseDate } from '../../utils/dateFormatter';
@@ -42,6 +43,7 @@ export default function AddStaffScreen({ navigation, route }: AddStaffScreenProp
 
   const [loading, setLoading] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const [formData, setFormData] = useState({
     first_name: '',
@@ -279,13 +281,25 @@ export default function AddStaffScreen({ navigation, route }: AddStaffScreenProp
             autoCapitalize="none"
           />
           <Text style={styles.label}>Temporary Password *</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.password}
-            onChangeText={(text) => updateField('password', text)}
-            placeholder="Minimum 6 characters"
-            secureTextEntry
-          />
+          <View style={styles.passwordContainer}>
+            <TextInput
+              style={styles.passwordInput}
+              value={formData.password}
+              onChangeText={(text) => updateField('password', text)}
+              placeholder="Minimum 6 characters"
+              secureTextEntry={!showPassword}
+            />
+            <TouchableOpacity
+              style={styles.eyeButton}
+              onPress={() => setShowPassword(!showPassword)}
+            >
+              <Ionicons
+                name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                size={20}
+                color="#64748b"
+              />
+            </TouchableOpacity>
+          </View>
           <Text style={styles.hintText}>
             💡 This password will be shared with the staff member.
           </Text>
@@ -515,6 +529,25 @@ const styles = StyleSheet.create({
   textArea: {
     height: 100,
     textAlignVertical: 'top',
+  },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 8,
+  },
+  passwordInput: {
+    flex: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: '#1e293b',
+  },
+  eyeButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 12,
   },
   hintText: {
     fontSize: 12,

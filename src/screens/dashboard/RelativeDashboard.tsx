@@ -6,10 +6,10 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   ScrollView,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface RelativeDashboardProps {
   userData: any;
@@ -34,7 +34,7 @@ export default function RelativeDashboard({ userData, onLogout, navigation }: Re
   const linkedClientId = userData.client_id || userData.relative?.client_id || userData.cNo || user?.client_id;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <ScrollView style={styles.content}>
         {/* Header */}
         <View style={styles.header}>

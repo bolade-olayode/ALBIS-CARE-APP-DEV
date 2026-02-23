@@ -7,9 +7,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback } from 'react';
 import { clientApi } from '../../services/api/clientApi';
@@ -69,7 +69,7 @@ export default function CareManagerDashboard({ userData, onLogout, navigation }:
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <ScrollView style={styles.content}>
         {/* Header */}
         <View style={styles.header}>

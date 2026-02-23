@@ -5,8 +5,8 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { staffApi } from '../../services/api/staffApi';
 import { clientApi } from '../../services/api/clientApi';
@@ -48,7 +48,7 @@ export default function AdminDashboard({ userData, onLogout, navigation }: Admin
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <ScrollView style={styles.content}>
         {/* Header */}
         <View style={styles.header}>

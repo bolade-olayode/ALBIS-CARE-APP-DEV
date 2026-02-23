@@ -1,13 +1,13 @@
 // src/components/ScreenWrapper.tsx
 import React from 'react';
 import {
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
   StatusBar,
   ViewStyle,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface ScreenWrapperProps {
   children: React.ReactNode;
@@ -15,15 +15,15 @@ interface ScreenWrapperProps {
   style?: ViewStyle;
 }
 
-export default function ScreenWrapper({ 
-  children, 
+export default function ScreenWrapper({
+  children,
   backgroundColor = '#f8fafc',
-  style 
+  style
 }: ScreenWrapperProps) {
   return (
     <>
       <StatusBar barStyle="dark-content" backgroundColor={backgroundColor} />
-      <SafeAreaView style={[styles.safeArea, { backgroundColor }, style]}>
+      <SafeAreaView style={[styles.safeArea, { backgroundColor }, style]} edges={['top', 'left', 'right']}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardView}

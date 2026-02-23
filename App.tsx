@@ -1,5 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef } from 'react';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppNavigator from './src/navigation/AppNavigator';
 import { notificationService } from './src/services/notificationService';
 
@@ -47,9 +48,9 @@ export default function App() {
   }, []);
 
   return (
-    <>
+    <SafeAreaProvider>
       <AppNavigator navigationRef={navigationRef} />
       <StatusBar style="auto" />
-    </>
+    </SafeAreaProvider>
   );
 }
